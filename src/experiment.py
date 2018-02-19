@@ -3,6 +3,7 @@ from util import parser_util as parser
 from src.seq2seq_model import Seq2SeqModel, Config
 import tensorflow as tf
 import time
+import numpy as np
 
 def split_train_dev(data):
     split = int(len(data) * 0.85)
@@ -30,7 +31,16 @@ def main():
         with tf.Session() as session:
             session.run(init)
             model.fit(session, saver, train, dev, pad_tokens=[embedder.PAD, embedder.END])
-            model.evaluate(session, dev, pad_tokens=[embedder.PAD, embedder.END], write_preds=True)
+            predictions, loss = model.evaluate(session, dev, pad_tokens=[embedder.PAD, embedder.END], write_preds=True)
+            print("Overall mean incorrect predictions on dev set: " + str(loss))
+            input_sentences = [d[0] for d in dev]
+            label_sentences = [d[1] for d in dev]
+            print('Average sentence length input: {}, labels: {}, predictions: {}'.format(
+                np.mean([len(sentence) for sentence in input_sentences]),
+                np.mean([len(sentence) for sentence in label_sentences]),
+                np.mean([len(sentence.split(' ')) for sentence in predictions])
+            ))
+
 
 
 if __name__ == '__main__':

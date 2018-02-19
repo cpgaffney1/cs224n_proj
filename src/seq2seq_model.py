@@ -16,11 +16,9 @@ class Config:
     dropout = 0.5
     hidden_size = 200
     batch_size = 2048
-    n_epochs = 1000
-    lr = 0.001
+    n_epochs = 400
+    lr = 0.01
     n_layers = 4
-    n_epochs = 500
-    lr = 0.001
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps):
         self.embed_size = embed_size
@@ -148,11 +146,11 @@ class Seq2SeqModel(VBModel):
         Returns:
             predictions: np.ndarray of shape (n_samples, n_classes)
         """
-        feed = self.create_feed_dict(encoder_inputs_batch, decoder_inputs_batch,
+        feed = self.create_feed_dict(encoder_inputs_batch, decoder_inputs_batch, labels_batch=labels_batch,
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      decoder_lengths_batch=decoder_lengths_batch)
-        predictions = sess.run(tf.argmax(self.pred, axis=2), feed_dict=feed)
-        return predictions
+        predictions, loss = sess.run([tf.argmax(self.pred, axis=2), self.loss], feed_dict=feed)
+        return predictions, loss
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
                        encoder_lengths_batch, decoder_lengths_batch, labels_batch):

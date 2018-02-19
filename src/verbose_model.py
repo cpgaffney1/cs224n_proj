@@ -43,7 +43,7 @@ class VBModel(Model):
 
 
     def evaluate(self, sess, examples, pad_tokens, write_preds=False):
-        loss = 0
+        loss = 0.0
         count = 0
         for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
             encoder_inputs_batch, decoder_inputs_batch, labels_batch = batch
@@ -51,20 +51,20 @@ class VBModel(Model):
                                      for example in encoder_inputs_batch]
             decoder_lengths_batch = [len([word for word in example if word not in pad_tokens])
                                      for example in decoder_inputs_batch]
-            predictions = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                 decoder_inputs_batch=decoder_inputs_batch,
                                                 labels_batch=labels_batch,
                                                 encoder_lengths_batch=encoder_lengths_batch,
                                                 decoder_lengths_batch=decoder_lengths_batch)
+            loss += batch_loss
             predictions = self.index_to_word(predictions)
-            print(predictions[:5])
+            print(predictions[0])
             if write_preds:
                 with open('../predictions/dev_predict.txt', 'a') as of:
                     for p in predictions:
-                        of.write(p)
-            loss += np.mean(np.sum((predictions != labels_batch), axis=-1))
-            count += 1
-        return loss / count
+                        of.write(p + '\n')
+
+        return predictions, loss / count
 
     def index_to_word(self, predictions):
         sentences = [[] for _ in predictions]
@@ -98,8 +98,8 @@ class VBModel(Model):
                                            decoder_lengths_batch=decoder_lengths_batch,
                                            labels_batch=labels_batch)
                 print(" Loss: " + str(loss))
-            loss = self.evaluate(sess, dev_set, pad_tokens)
-            print("Mean incorrect predictions on dev set: " + str(loss))
+            predictions, loss = self.evaluate(sess, dev_set, pad_tokens)
+            print("Dev set loss: " + str(loss))
 
         saver.save(sess, "../models/seq2seq_model.ckpt")
         return best_score
