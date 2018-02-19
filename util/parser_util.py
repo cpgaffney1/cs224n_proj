@@ -6,7 +6,6 @@ class Config(object):
     simple_file = '..//data//simple.aligned'
     pwkp_file = '..//data//PWKP_108016.txt'
 
-
 max_encoder_timesteps = 0
 max_decoder_timesteps = 0
 

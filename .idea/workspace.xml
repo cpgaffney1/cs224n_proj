@@ -4,23 +4,10 @@
     <list default="true" id="7e8f2ac1-855e-4073-8c8d-5e44fde110ba" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change beforePath="$PROJECT_DIR$/src/experiment.py" afterPath="$PROJECT_DIR$/src/experiment.py" />
+      <change beforePath="$PROJECT_DIR$/src/model.py" afterPath="$PROJECT_DIR$/src/model.py" />
       <change beforePath="$PROJECT_DIR$/src/seq2seq_model.py" afterPath="$PROJECT_DIR$/src/seq2seq_model.py" />
       <change beforePath="$PROJECT_DIR$/src/verbose_model.py" afterPath="$PROJECT_DIR$/src/verbose_model.py" />
       <change beforePath="$PROJECT_DIR$/util/parser_util.py" afterPath="$PROJECT_DIR$/util/parser_util.py" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/orig-prefix.txt" afterPath="$PROJECT_DIR$/venv/Lib/orig-prefix.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/numpy-1.14.0.dist-info/top_level.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/numpy-1.14.0.dist-info/top_level.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/numpy/LICENSE.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/numpy/LICENSE.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/numpy/core/include/numpy/multiarray_api.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/numpy/core/include/numpy/multiarray_api.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/numpy/core/include/numpy/ufunc_api.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/numpy/core/include/numpy/ufunc_api.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/pip-9.0.1.dist-info/entry_points.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/pip-9.0.1.dist-info/entry_points.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/pip-9.0.1.dist-info/top_level.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/pip-9.0.1.dist-info/top_level.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/LICENSE.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/LICENSE.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/dependency_links.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/dependency_links.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/entry_points.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/entry_points.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/top_level.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/setuptools-38.5.1.dist-info/top_level.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/wheel-0.30.0.dist-info/LICENSE.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/wheel-0.30.0.dist-info/LICENSE.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/wheel-0.30.0.dist-info/entry_points.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/wheel-0.30.0.dist-info/entry_points.txt" />
-      <change beforePath="$PROJECT_DIR$/venv/Lib/site-packages/wheel-0.30.0.dist-info/top_level.txt" afterPath="$PROJECT_DIR$/venv/Lib/site-packages/wheel-0.30.0.dist-info/top_level.txt" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -46,8 +33,8 @@
       <file leaf-file-name="parser_util.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/util/parser_util.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="210">
-              <caret line="64" column="22" lean-forward="false" selection-start-line="64" selection-start-column="22" selection-end-line="64" selection-end-column="22" />
+            <state relative-caret-position="-1025">
+              <caret line="3" column="21" lean-forward="false" selection-start-line="3" selection-start-column="21" selection-end-line="3" selection-end-column="21" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -58,8 +45,8 @@
       <file leaf-file-name="seq2seq_model.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/seq2seq_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="252">
-              <caret line="18" column="19" lean-forward="true" selection-start-line="18" selection-start-column="19" selection-end-line="18" selection-end-column="19" />
+            <state relative-caret-position="315">
+              <caret line="153" column="0" lean-forward="false" selection-start-line="153" selection-start-column="0" selection-end-line="153" selection-end-column="0" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -70,8 +57,8 @@
       <file leaf-file-name="model.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="322">
-              <caret line="101" column="62" lean-forward="false" selection-start-line="101" selection-start-column="62" selection-end-line="101" selection-end-column="62" />
+            <state relative-caret-position="1659">
+              <caret line="79" column="0" lean-forward="false" selection-start-line="79" selection-start-column="0" selection-end-line="79" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -80,11 +67,9 @@
       <file leaf-file-name="verbose_model.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/verbose_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="304">
-              <caret line="58" column="92" lean-forward="true" selection-start-line="58" selection-start-column="92" selection-end-line="58" selection-end-column="92" />
-              <folding>
-                <element signature="e#95#105#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="126">
+              <caret line="8" column="0" lean-forward="false" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -92,8 +77,8 @@
       <file leaf-file-name="experiment.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/experiment.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="273">
-              <caret line="31" column="74" lean-forward="false" selection-start-line="31" selection-start-column="74" selection-end-line="31" selection-end-column="74" />
+            <state relative-caret-position="235">
+              <caret line="24" column="0" lean-forward="true" selection-start-line="24" selection-start-column="0" selection-end-line="24" selection-end-column="0" />
               <folding>
                 <element signature="e#0#43#0" expanded="true" />
               </folding>
@@ -128,10 +113,10 @@
       <list>
         <option value="$PROJECT_DIR$/util/embedding_util.py" />
         <option value="$PROJECT_DIR$/util/functional_util.py" />
-        <option value="$PROJECT_DIR$/src/model.py" />
-        <option value="$PROJECT_DIR$/src/seq2seq_model.py" />
         <option value="$PROJECT_DIR$/src/experiment.py" />
+        <option value="$PROJECT_DIR$/src/seq2seq_model.py" />
         <option value="$PROJECT_DIR$/util/parser_util.py" />
+        <option value="$PROJECT_DIR$/src/model.py" />
         <option value="$PROJECT_DIR$/src/verbose_model.py" />
       </list>
     </option>
@@ -260,7 +245,7 @@
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3295583" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.4688562" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2366931" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24960339" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3295583" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
@@ -327,9 +312,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1491">
           <caret line="77" column="0" lean-forward="false" selection-start-line="77" selection-start-column="0" selection-end-line="77" selection-end-column="0" />
-          <folding>
-            <element signature="e#95#105#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -387,9 +370,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1491">
           <caret line="77" column="0" lean-forward="false" selection-start-line="77" selection-start-column="0" selection-end-line="77" selection-end-column="0" />
-          <folding>
-            <element signature="e#95#105#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -565,44 +546,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/verbose_model.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="304">
-          <caret line="58" column="92" lean-forward="true" selection-start-line="58" selection-start-column="92" selection-end-line="58" selection-end-column="92" />
-          <folding>
-            <element signature="e#95#105#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/model.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="322">
-          <caret line="101" column="62" lean-forward="false" selection-start-line="101" selection-start-column="62" selection-end-line="101" selection-end-column="62" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/util/parser_util.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="64" column="22" lean-forward="false" selection-start-line="64" selection-start-column="22" selection-end-line="64" selection-end-column="22" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/seq2seq_model.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="252">
-          <caret line="18" column="19" lean-forward="true" selection-start-line="18" selection-start-column="19" selection-end-line="18" selection-end-column="19" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/util/embedding_util.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1596">
@@ -613,10 +556,46 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/util/parser_util.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1025">
+          <caret line="3" column="21" lean-forward="false" selection-start-line="3" selection-start-column="21" selection-end-line="3" selection-end-column="21" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/seq2seq_model.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="315">
+          <caret line="153" column="0" lean-forward="false" selection-start-line="153" selection-start-column="0" selection-end-line="153" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/model.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1659">
+          <caret line="79" column="0" lean-forward="false" selection-start-line="79" selection-start-column="0" selection-end-line="79" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/verbose_model.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="126">
+          <caret line="8" column="0" lean-forward="false" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/experiment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="273">
-          <caret line="31" column="74" lean-forward="false" selection-start-line="31" selection-start-column="74" selection-end-line="31" selection-end-column="74" />
+        <state relative-caret-position="235">
+          <caret line="24" column="0" lean-forward="true" selection-start-line="24" selection-start-column="0" selection-end-line="24" selection-end-column="0" />
           <folding>
             <element signature="e#0#43#0" expanded="true" />
           </folding>

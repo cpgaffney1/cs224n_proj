@@ -7,7 +7,6 @@ import pdb
 import logging
 import util.embedding_util as embedder
 import numpy as np
-
 import tensorflow as tf
 from util.functional_util import ConfusionMatrix, Progbar, minibatches
 from src.model import Model

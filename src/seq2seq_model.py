@@ -19,6 +19,8 @@ class Config:
     n_epochs = 1000
     lr = 0.001
     n_layers = 4
+    n_epochs = 500
+    lr = 0.001
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps):
         self.embed_size = embed_size
@@ -95,6 +97,7 @@ class Seq2SeqModel(VBModel):
             self.config.vocab_size, use_bias=False)
 
         # Build RNN cell
+
         decoder_cells = []
         for i in range(self.config.n_layers):
             decoder_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
@@ -109,6 +112,7 @@ class Seq2SeqModel(VBModel):
         # Dynamic decoding
         outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
+
         assert(logits.get_shape()[2] == self.config.vocab_size)
         return logits
 
@@ -132,6 +136,7 @@ class Seq2SeqModel(VBModel):
             i += len(sentence)
             ret.append([sentence, labels, labels_])
         return ret
+
 
     def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch,
                          encoder_lengths_batch, decoder_lengths_batch):

@@ -93,6 +93,7 @@ class Model(object):
 
     def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch,
                          encoder_lengths_batch, decoder_lengths_batch):
+
         """Make predictions for the provided batch of data
 
         Args:
