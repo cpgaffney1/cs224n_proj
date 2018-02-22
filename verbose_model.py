@@ -99,8 +99,8 @@ class VBModel(Model):
                 print(" Loss: " + str(loss))
             predictions, loss = self.evaluate(sess, dev_set, pad_tokens)
             print("Dev set loss: " + str(loss))
-
-        saver.save(sess, "models//seq2seq_model.ckpt")
+            if epoch % 10 == 0:
+                saver.save(sess, "models//seq2seq_model.ckpt")
         return best_score
 
 

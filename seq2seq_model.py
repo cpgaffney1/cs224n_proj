@@ -15,7 +15,7 @@ class Config:
     batch_size = 128
     n_epochs = 400
     lr = 0.01
-    n_layers = 4
+    n_layers = 3
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps):
         self.embed_size = embed_size
