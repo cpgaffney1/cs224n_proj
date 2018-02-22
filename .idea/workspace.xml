@@ -2,14 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7e8f2ac1-855e-4073-8c8d-5e44fde110ba" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/src/experiment.py" afterPath="$PROJECT_DIR$/experiment.py" />
-      <change beforePath="$PROJECT_DIR$/src/model.py" afterPath="$PROJECT_DIR$/model.py" />
-      <change beforePath="$PROJECT_DIR$/src/seq2seq_model.py" afterPath="$PROJECT_DIR$/seq2seq_model.py" />
-      <change beforePath="$PROJECT_DIR$/src/verbose_model.py" afterPath="$PROJECT_DIR$/verbose_model.py" />
-      <change beforePath="$PROJECT_DIR$/util/embedding_util.py" afterPath="$PROJECT_DIR$/embedding_util.py" />
-      <change beforePath="$PROJECT_DIR$/util/functional_util.py" afterPath="$PROJECT_DIR$/functional_util.py" />
-      <change beforePath="$PROJECT_DIR$/util/parser_util.py" afterPath="$PROJECT_DIR$/parser_util.py" />
+      <change beforePath="$PROJECT_DIR$/parser_util.py" afterPath="$PROJECT_DIR$/parser_util.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -32,11 +25,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="parser_util.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="parser_util.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/parser_util.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="144">
-              <caret line="63" column="23" lean-forward="false" selection-start-line="63" selection-start-column="23" selection-end-line="63" selection-end-column="23" />
+            <state relative-caret-position="165">
+              <caret line="64" column="13" lean-forward="false" selection-start-line="64" selection-start-column="13" selection-end-line="64" selection-end-column="13" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -48,7 +41,7 @@
         <entry file="file://$PROJECT_DIR$/seq2seq_model.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="168">
-              <caret line="14" column="20" lean-forward="false" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
+              <caret line="14" column="20" lean-forward="true" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -56,10 +49,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="verbose_model.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="verbose_model.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/verbose_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="105">
+            <state relative-caret-position="1050">
               <caret line="53" column="52" lean-forward="true" selection-start-line="53" selection-start-column="52" selection-end-line="53" selection-end-column="52" />
               <folding>
                 <element signature="e#95#109#0" expanded="true" />
@@ -125,9 +118,9 @@
         <option value="$PROJECT_DIR$/src/experiment.py" />
         <option value="$PROJECT_DIR$/src/verbose_model.py" />
         <option value="$PROJECT_DIR$/embedding_util.py" />
-        <option value="$PROJECT_DIR$/parser_util.py" />
         <option value="$PROJECT_DIR$/seq2seq_model.py" />
         <option value="$PROJECT_DIR$/verbose_model.py" />
+        <option value="$PROJECT_DIR$/parser_util.py" />
       </list>
     </option>
   </component>
@@ -607,12 +600,12 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/parser_util.py">
+    <entry file="file://$PROJECT_DIR$/verbose_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="144">
-          <caret line="63" column="23" lean-forward="false" selection-start-line="63" selection-start-column="23" selection-end-line="63" selection-end-column="23" />
+        <state relative-caret-position="1050">
+          <caret line="53" column="52" lean-forward="true" selection-start-line="53" selection-start-column="52" selection-end-line="53" selection-end-column="52" />
           <folding>
-            <element signature="e#0#9#0" expanded="true" />
+            <element signature="e#95#109#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -620,19 +613,19 @@
     <entry file="file://$PROJECT_DIR$/seq2seq_model.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="168">
-          <caret line="14" column="20" lean-forward="false" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
+          <caret line="14" column="20" lean-forward="true" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/verbose_model.py">
+    <entry file="file://$PROJECT_DIR$/parser_util.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="105">
-          <caret line="53" column="52" lean-forward="true" selection-start-line="53" selection-start-column="52" selection-end-line="53" selection-end-column="52" />
+        <state relative-caret-position="165">
+          <caret line="64" column="13" lean-forward="false" selection-start-line="64" selection-start-column="13" selection-end-line="64" selection-end-column="13" />
           <folding>
-            <element signature="e#95#109#0" expanded="true" />
+            <element signature="e#0#9#0" expanded="true" />
           </folding>
         </state>
       </provider>
