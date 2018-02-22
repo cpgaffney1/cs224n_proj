@@ -12,10 +12,10 @@ class Config:
     """
     dropout = 0.5
     hidden_size = 200
-    batch_size = 128
-    n_epochs = 400
+    batch_size = 512
+    n_epochs = 200
     lr = 0.01
-    n_layers = 3
+    n_layers = 4
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps):
         self.embed_size = embed_size
@@ -84,7 +84,7 @@ class Seq2SeqModel(VBModel):
         initial_state = encoder_cell.zero_state(self.config.batch_size, dtype=tf.float32)
         encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
             cell=encoder_cell, inputs=encoder_in,
-            #sequence_length=self.encoder_lengths_placeholder,
+            sequence_length=self.encoder_lengths_placeholder,
             dtype=tf.float32#, initial_state=initial_state
         )
 
