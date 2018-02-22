@@ -1,9 +1,10 @@
-from util import embedding_util as embedder
-from util import parser_util as parser
-from src.seq2seq_model import Seq2SeqModel, Config
+import embedding_util as embedder
+import parser_util as parser
+from seq2seq_model import Seq2SeqModel, Config
 import tensorflow as tf
 import time
 import numpy as np
+
 
 def split_train_dev(data):
     split = int(len(data) * 0.85)

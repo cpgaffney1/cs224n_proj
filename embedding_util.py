@@ -1,12 +1,12 @@
-import time, os
+import time
 import numpy as np
 from collections import Counter
-from util import parser_util
+import parser_util
 import codecs
 
 class Config(object):
-    large_embedding_file = '..//data//glove.840B.300d.txt'
-    small_embedding_file = '..//data//en-cw.txt'
+    large_embedding_file = 'data//glove.840B.300d.txt'
+    small_embedding_file = 'data//en-cw.txt'
     unlabeled = True
     lowercase = True
     use_pos = True

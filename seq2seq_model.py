@@ -1,8 +1,5 @@
 import tensorflow as tf
-import util.parser_util as parser
-import util.embedding_util as embedder
-import time, datetime
-from src.verbose_model import VBModel
+from verbose_model import VBModel
 from tensorflow.python.layers import core as layers_core
 
 class Config:
@@ -15,7 +12,7 @@ class Config:
     """
     dropout = 0.5
     hidden_size = 200
-    batch_size = 2048
+    batch_size = 128
     n_epochs = 400
     lr = 0.01
     n_layers = 4

@@ -3,13 +3,10 @@
 """
 A model for named entity recognition.
 """
-import pdb
 import logging
-import util.embedding_util as embedder
-import numpy as np
-import tensorflow as tf
-from util.functional_util import ConfusionMatrix, Progbar, minibatches
-from src.model import Model
+import embedding_util as embedder
+from functional_util import Progbar, minibatches
+from model import Model
 
 logger = logging.getLogger("hw3")
 logger.setLevel(logging.DEBUG)
@@ -59,11 +56,13 @@ class VBModel(Model):
             loss += batch_loss
             predictions = self.index_to_word(predictions)
             print(predictions[0])
+            print(predictions[1])
+            print(predictions[2])
             if write_preds:
-                with open('../predictions/dev_predict.txt', 'a') as of:
+                with open('dev_predict.txt', 'a') as of:
                     for p in predictions:
                         of.write(p + '\n')
-
+            count += 1
         return predictions, loss / count
 
     def index_to_word(self, predictions):
@@ -101,7 +100,7 @@ class VBModel(Model):
             predictions, loss = self.evaluate(sess, dev_set, pad_tokens)
             print("Dev set loss: " + str(loss))
 
-        saver.save(sess, "../models/seq2seq_model.ckpt")
+        saver.save(sess, "models//seq2seq_model.ckpt")
         return best_score
 
 

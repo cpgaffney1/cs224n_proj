@@ -2,9 +2,9 @@ import os
 import numpy as np
 
 class Config(object):
-    normal_file = '..//data//normal.aligned'
-    simple_file = '..//data//simple.aligned'
-    pwkp_file = '..//data//PWKP_108016.txt'
+    normal_file = 'data//normal.aligned'
+    simple_file = 'data//simple.aligned'
+    pwkp_file = 'data//PWKP_108016.txt'
 
 max_encoder_timesteps = 0
 max_decoder_timesteps = 0
@@ -61,8 +61,8 @@ def parse_pwkp():
         parse_head = ['', '']
         i = 0
         for ln in f:
-            #if i > 10:
-            #    break
+            if i > 1000:
+                break
             i+=1
             decoded = False
             sentence = ''
