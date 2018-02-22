@@ -12,10 +12,10 @@ class Config:
     """
     dropout = 0.5
     hidden_size = 200
-    batch_size = 512
+    batch_size = 64
     n_epochs = 200
     lr = 0.01
-    n_layers = 4
+    n_layers = 2
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps):
         self.embed_size = embed_size
