@@ -61,7 +61,7 @@ def parse_pwkp():
         parse_head = ['', '']
         i = 0
         for ln in f:
-            #if i > 1000:
+            #if i > 10:
             #    break
             i+=1
             decoded = False
