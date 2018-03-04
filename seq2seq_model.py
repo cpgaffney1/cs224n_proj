@@ -11,18 +11,32 @@ class Config:
 
     """
     dropout = 0.5
-    hidden_size = 64
-    batch_size = 32
-    n_epochs = 200
+    hidden_size = 32
+    batch_size = 4
+    n_epochs = 1000
     lr = 0.01
     n_layers = 1
+    beam_width = 10
 
-    def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps):
+    def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
+                 pad_token, start_token, end_token, attention, bidirectional, beamsearch=False,
+                 mode='TRAIN', large=True):
         self.embed_size = embed_size
         self.vocab_size = vocab_size
         self.max_encoder_timesteps = max_encoder_timesteps
         self.max_decoder_timesteps = max_decoder_timesteps
         self.hidden_size = embed_size
+        self.pad_token = pad_token
+        self.start_token = start_token
+        self.end_token = end_token
+        self.attention = attention
+        self.bidirectional = bidirectional
+        self.mode = mode
+        self.beamsearch = beamsearch
+        if large:
+            self.batch_size = 4
+            self.hidden_size = 16
+            self.n_layers = 1
 
 
 
@@ -31,9 +45,9 @@ class Seq2SeqModel(VBModel):
     def add_placeholders(self):
         self.encoder_input_placeholder = tf.placeholder(tf.int32, shape=(None, self.config.max_encoder_timesteps),
                                                         name="encoder_in")
-        self.decoder_input_placeholder = tf.placeholder(tf.int32, shape=(None, self.config.max_decoder_timesteps),
+        self.decoder_input_placeholder = tf.placeholder(tf.int32, shape=(None, self.config.max_decoder_timesteps + 1),
                                                         name="decoder_in")
-        self.labels_placeholder = tf.placeholder(tf.int32, shape=(None, self.config.max_decoder_timesteps),
+        self.labels_placeholder = tf.placeholder(tf.int32, shape=(None, self.config.max_decoder_timesteps + 1),
                                                  name="labels")
         self.dropout_placeholder = tf.placeholder(tf.float32, shape=(),
                                                   name='dropout')
@@ -41,9 +55,11 @@ class Seq2SeqModel(VBModel):
                                                           name='enc_lengths')
         self.decoder_lengths_placeholder = tf.placeholder(tf.int32, shape=(None,),
                                                           name='dec_lengths')
+        self.dynamic_batch_size = tf.placeholder(tf.int32, [], name='dynamic_batch_size')
 
     def create_feed_dict(self, encoder_inputs_batch, decoder_inputs_batch,
-                         labels_batch=None, encoder_lengths_batch=None, decoder_lengths_batch=None, dropout=1):
+                         labels_batch=None, encoder_lengths_batch=None, decoder_lengths_batch=None,
+                         batch_size=None, dropout=1):
         feed_dict = {
             self.encoder_input_placeholder: encoder_inputs_batch,
             self.decoder_input_placeholder: decoder_inputs_batch,
@@ -55,10 +71,12 @@ class Seq2SeqModel(VBModel):
             feed_dict[self.encoder_lengths_placeholder] = encoder_lengths_batch
         if decoder_lengths_batch is not None:
             feed_dict[self.decoder_lengths_placeholder] = decoder_lengths_batch
+        if batch_size is not None:
+            feed_dict[self.dynamic_batch_size] = batch_size
         return feed_dict
 
     def add_embedding(self):
-        pretrained_embeddings = tf.Variable(self.pretrained_embeddings)
+        pretrained_embeddings = tf.constant(self.pretrained_embeddings)
         encoder_embeddings = tf.nn.embedding_lookup(
                 pretrained_embeddings, self.encoder_input_placeholder)
         decoder_embeddings = tf.nn.embedding_lookup(
@@ -67,43 +85,133 @@ class Seq2SeqModel(VBModel):
         decoder_embeddings = tf.cast(decoder_embeddings, tf.float32)
         return encoder_embeddings, decoder_embeddings
 
-    def add_prediction_op(self):
+    def add_encoder(self, encoder_in):
+        encoder_lengths_constant = tf.fill(tf.shape(self.encoder_lengths_placeholder),
+                                           self.config.max_encoder_timesteps)
+        if self.config.bidirectional:
+            # forward lstm
+            forward_cells = []
+            for i in range(self.config.n_layers):
+                forward_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
+            forward_cell = tf.contrib.rnn.MultiRNNCell(forward_cells)
 
-        encoder_in, decoder_in = self.add_embedding()
-        dropout_rate = self.dropout_placeholder
+            # backward lstm
+            backward_cells = []
+            for i in range(self.config.n_layers):
+                backward_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
+            backward_cell = tf.contrib.rnn.MultiRNNCell(backward_cells)
+            (output_fw, output_bw), bi_encoder_state = tf.nn.bidirectional_dynamic_rnn(
+                forward_cell, backward_cell, encoder_in,
+                sequence_length=encoder_lengths_constant,
+                dtype=tf.float32
+            )
+            encoder_outputs = tf.concat([output_fw, output_bw], axis=-1)
+            if self.config.n_layers == 1:
+                encoder_state = bi_encoder_state
+            else:
+                # alternatively concat forward and backward states
+                encoder_state = []
+                for layer_id in range(self.config.n_layers):
+                    encoder_state.append(bi_encoder_state[0][layer_id])  # forward
+                    encoder_state.append(bi_encoder_state[1][layer_id])  # backward
+                encoder_state = tuple(encoder_state)
+        else:
+            # Build RNN cell
+            encoder_cells = []
+            for i in range(self.config.n_layers):
+                cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+                cell = tf.contrib.rnn.DropoutWrapper(
+                    cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
+                encoder_cells.append(cell)
+            encoder_cell = tf.contrib.rnn.MultiRNNCell(encoder_cells)
+            # run rnn
+            encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
+                cell=encoder_cell, inputs=encoder_in,
+                sequence_length=encoder_lengths_constant,
+                dtype=tf.float32
+            )
 
-        # Build RNN cell
-        encoder_cells = []
+        return encoder_outputs, encoder_state
+
+    def add_attention(self, encoder_outputs, encoder_state, decoder_cell):
+        if self.config.attention:
+            attention_mechanism = tf.contrib.seq2seq.LuongAttention(
+                self.config.hidden_size, encoder_outputs)
+            decoder_cell = tf.contrib.seq2seq.AttentionWrapper(
+                decoder_cell, attention_mechanism, attention_layer_size=self.config.hidden_size
+            )
+            decoder_initial_state = decoder_cell.zero_state(self.dynamic_batch_size, tf.float32).clone(
+                cell_state=encoder_state
+            )
+        else:
+             decoder_initial_state = encoder_state
+
+        return decoder_cell, decoder_initial_state
+
+    def add_decoder(self, decoder_in, encoder_outputs, encoder_state):
+
+        decoder_lengths_constant = tf.fill(tf.shape(self.decoder_lengths_placeholder),
+                                           self.config.max_decoder_timesteps + 1)
+        decoder_cells = []
         for i in range(self.config.n_layers):
-            encoder_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
-        encoder_cell = tf.contrib.rnn.MultiRNNCell(encoder_cells)
+            cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+            cell = tf.contrib.rnn.DropoutWrapper(
+                cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
+            decoder_cells.append(cell)
+        decoder_cell = tf.contrib.rnn.MultiRNNCell(decoder_cells)
 
-        # Run Dynamic RNN
-        #   encoder_outputs: [max_time, batch_size, num_units]
-        #   encoder_state: [batch_size, num_units]
-        initial_state = encoder_cell.zero_state(self.config.batch_size, dtype=tf.float32)
-        encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
-            cell=encoder_cell, inputs=encoder_in,
-            sequence_length=self.encoder_lengths_placeholder,
-            dtype=tf.float32#, initial_state=initial_state
-        )
+        # Helper
+        if self.config.mode == 'TRAIN':
+            helper = tf.contrib.seq2seq.TrainingHelper(
+                decoder_in, decoder_lengths_constant
+            )
+        else:
+            assert self.config.mode == 'TEST'
+            if self.config.beamsearch:
+                helper = None
+            else:
+                helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                    self.pretrained_embeddings,
+                    tf.fill([self.dynamic_batch_size], self.config.start_token),
+                    self.config.end_token
+                )
 
         projection_layer = layers_core.Dense(
             self.config.vocab_size, use_bias=False)
 
-        # Build RNN cell
+        decoder_cell, decoder_initial_state = self.add_attention(encoder_outputs, encoder_state, decoder_cell)
 
-        decoder_cells = []
-        for i in range(self.config.n_layers):
-            decoder_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
-        decoder_cell = tf.contrib.rnn.MultiRNNCell(decoder_cells)
-        # Helper
-        helper = tf.contrib.seq2seq.TrainingHelper(
-            decoder_in, self.decoder_lengths_placeholder)
         # Decoder
-        decoder = tf.contrib.seq2seq.BasicDecoder(
-            decoder_cell, helper, encoder_state,
-            output_layer=projection_layer)
+        if self.config.beamsearch:
+            # Replicate encoder infos beam_width times
+            decoder_initial_state = tf.contrib.seq2seq.tile_batch(
+                encoder_state, multiplier=self.config.beam_width)
+            # Define a beam-search decoder
+            decoder = tf.contrib.seq2seq.BeamSearchDecoder(
+                cell=decoder_cell,
+                embedding=self.pretrained_embeddings,
+                start_tokens=self.config.start_token,
+                end_token=self.config.end_token,
+                initial_state=decoder_initial_state,
+                beam_width=self.config.beam_width,
+                output_layer=projection_layer,
+                length_penalty_weight=0.0)
+        else:
+            decoder = tf.contrib.seq2seq.BasicDecoder(
+                decoder_cell, helper, decoder_initial_state,
+                output_layer=projection_layer
+            )
+
+        return decoder
+
+    def add_prediction_op(self):
+        encoder_in, decoder_in = self.add_embedding()
+        dropout_rate = self.dropout_placeholder
+
+        encoder_outputs, encoder_state = self.add_encoder(encoder_in)
+
+        decoder = self.add_decoder(decoder_in, encoder_outputs, encoder_state)
+
         # Dynamic decoding
         outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
@@ -112,8 +220,10 @@ class Seq2SeqModel(VBModel):
         return logits
 
     def add_loss_op(self, pred):
-        loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=self.labels_placeholder, logits=pred))
+        mask = tf.sequence_mask(self.decoder_lengths_placeholder, self.config.max_decoder_timesteps + 1)
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            labels=self.labels_placeholder, logits=pred)
+        loss = tf.reduce_mean(tf.boolean_mask(loss, mask))
         return loss
 
     def add_training_op(self, loss):
@@ -134,7 +244,7 @@ class Seq2SeqModel(VBModel):
 
 
     def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch,
-                         encoder_lengths_batch, decoder_lengths_batch):
+                         encoder_lengths_batch, decoder_lengths_batch, batch_size):
         """Make predictions for the provided batch of data
 
         Args:
@@ -145,17 +255,18 @@ class Seq2SeqModel(VBModel):
         """
         feed = self.create_feed_dict(encoder_inputs_batch, decoder_inputs_batch, labels_batch=labels_batch,
                                      encoder_lengths_batch=encoder_lengths_batch,
-                                     decoder_lengths_batch=decoder_lengths_batch)
+                                     decoder_lengths_batch=decoder_lengths_batch,
+                                     batch_size=batch_size)
         predictions, loss = sess.run([tf.argmax(self.pred, axis=2), self.loss], feed_dict=feed)
         return predictions, loss
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
-                       encoder_lengths_batch, decoder_lengths_batch, labels_batch):
+                       encoder_lengths_batch, decoder_lengths_batch, labels_batch, batch_size):
         feed = self.create_feed_dict(encoder_inputs_batch, decoder_inputs_batch, labels_batch=labels_batch,
                                      encoder_lengths_batch=encoder_lengths_batch, decoder_lengths_batch=decoder_lengths_batch,
-                                     dropout=self.config.dropout)
-        _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
-        return loss
+                                     batch_size=batch_size, dropout=self.config.dropout)
+        predictions, _, loss = sess.run([tf.argmax(self.pred, axis=2), self.train_op, self.loss], feed_dict=feed)
+        return predictions, loss
 
     def __init__(self, config, pretrained_embeddings, report=None):
         super(Seq2SeqModel, self).__init__(config, report)
@@ -168,6 +279,7 @@ class Seq2SeqModel(VBModel):
         self.dropout_placeholder = None
         self.encoder_lengths_placeholder = None
         self.decoder_lengths_placeholder = None
+        self.dynamic_batch_size = None
 
         self.build()
 

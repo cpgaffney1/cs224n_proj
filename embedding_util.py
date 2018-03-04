@@ -5,8 +5,8 @@ import parser_util
 import codecs
 
 class Config(object):
-    large_embedding_file = 'data//glove.840B.300d.txt'
-    small_embedding_file = 'data//en-cw.txt'
+    large_embedding_file = 'data//glove.6B.50d.txt'
+    small_embedding_file = 'data//glove.6B.50d.txt'
     unlabeled = True
     lowercase = True
     use_pos = True
@@ -50,19 +50,23 @@ def build_dict(keys, n_max=None):
         else count.most_common(n_max)
     return {w[0]: index for (index, w) in enumerate(ls)}
 
-def get_embeddings_matrix(n_tokens):
+def get_embeddings_matrix(n_tokens, large=False):
     global embed_size
     config = Config()
     embed_size = -1
     word_vectors = {}
-    for line in codecs.open(config.small_embedding_file, encoding='latin-1', errors='ignore').readlines():
+    if large:
+        embed_file = config.large_embedding_file
+    else:
+        embed_file = config.small_embedding_file
+    for line in codecs.open(embed_file, encoding='utf8', errors='ignore').readlines():
         sp = line.strip().split()
         word_vectors[sp[0]] = [float(x) for x in sp[1:]]
         embed_size = len(word_vectors[sp[0]])
     embeddings_matrix = np.asarray(np.random.normal(0, 0.9, (n_tokens, embed_size)), dtype='float32')
     return embeddings_matrix, word_vectors
 
-def load_embeddings():
+def load_embeddings(large=False,data_filename=None,test=False):
     print("Loading pretrained embeddings...")
     start = time.time()
     global embed_size
@@ -70,10 +74,13 @@ def load_embeddings():
     global tok2id
     global id2tok
 
-    normal, simple = parser_util.parse_pwkp()
+    if data_filename is None:
+        normal, simple = parser_util.parse_pwkp(test=test)
+    else:
+        normal, simple = parser_util.parse_pwkp(filename=data_filename, test=test)
     tok2id, id2tok = get_id_mapping(normal + simple)
 
-    embeddings_matrix, word_vectors = get_embeddings_matrix(len(tok2id))
+    embeddings_matrix, word_vectors = get_embeddings_matrix(len(tok2id), large=large)
 
     print('Loading word vector mapping...')
 

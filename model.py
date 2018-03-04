@@ -77,7 +77,7 @@ class Model(object):
         raise NotImplementedError("Each Model must re-implement this method.")
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
-                       encoder_lengths_batch, decoder_lengths_batch, labels_batch):
+                       encoder_lengths_batch, decoder_lengths_batch, labels_batch, batch_size):
         """Perform one step of gradient descent on the provided batch of data.
 
         Args:
@@ -92,7 +92,7 @@ class Model(object):
         return loss
 
     def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch,
-                         encoder_lengths_batch, decoder_lengths_batch):
+                         encoder_lengths_batch, decoder_lengths_batch, batch_size):
 
         """Make predictions for the provided batch of data
 

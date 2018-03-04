@@ -381,6 +381,12 @@ def get_minibatches(data, minibatch_size, shuffle=True):
             else minibatch(data, minibatch_indices)
 
 
+def shuffle_in_parallel(arr1, arr2):
+    assert(len(arr1) == len(arr2))
+    indices = np.arange(len(arr1))
+    np.random.shuffle(indices)
+    return arr1[indices], arr2[indices]
+
 def minibatch(data, minibatch_idx):
     return data[minibatch_idx] if type(data) is np.ndarray else [data[i] for i in minibatch_idx]
 

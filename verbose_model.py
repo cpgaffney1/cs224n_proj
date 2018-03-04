@@ -39,69 +39,76 @@ class VBModel(Model):
         raise NotImplementedError("Each Model must re-implement this method.")
 
 
-    def evaluate(self, sess, examples, pad_tokens, write_preds=False):
+    def evaluate(self, sess, examples, pad_tokens, write_preds=True):
         loss = 0.0
         count = 0
+        predictions = []
+        print('Dev predictions')
+        print('---------------------')
         for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
-            encoder_inputs_batch, decoder_inputs_batch, labels_batch = batch
-            encoder_lengths_batch = [len([word for word in example if word not in pad_tokens])
-                                     for example in encoder_inputs_batch]
-            decoder_lengths_batch = [len([word for word in example if word not in pad_tokens])
-                                     for example in decoder_inputs_batch]
+            encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
+            encoder_lengths_batch, decoder_lengths_batch = batch
             predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                 decoder_inputs_batch=decoder_inputs_batch,
                                                 labels_batch=labels_batch,
                                                 encoder_lengths_batch=encoder_lengths_batch,
-                                                decoder_lengths_batch=decoder_lengths_batch)
+                                                decoder_lengths_batch=decoder_lengths_batch,
+                                                batch_size=encoder_lengths_batch.shape[0])
             loss += batch_loss
             predictions = self.index_to_word(predictions)
-            print(predictions[0])
-            print(predictions[1])
-            print(predictions[2])
+            print(self.print_pred(predictions[0]))
             if write_preds:
                 with open('dev_predict.txt', 'a') as of:
                     for p in predictions:
-                        of.write(p + '\n')
+                        of.write(self.print_pred(p) + '\n')
             count += 1
         return predictions, loss / count
 
     def index_to_word(self, predictions):
         sentences = [[] for _ in predictions]
         for i, example in enumerate(predictions):
-            sentences[i] = ' '.join([embedder.id2tok[id_num] for id_num in example])
+            sentences[i] = ' '.join([embedder.id2tok.get(id_num, '<unk>') for id_num in example])
         return sentences
 
+    def print_pred(self, pred):
+        end = pred.find('<end>')
+        if end == -1:
+            return pred
+        else:
+            return pred[:end + 1]
+
     def fit(self, sess, saver, train_examples_raw, dev_set_raw, pad_tokens=None):
-        best_score = 0.
         if pad_tokens is None:
             pad_tokens = []
         train_set = self.preprocess_sequence_data(train_examples_raw)
         dev_set = self.preprocess_sequence_data(dev_set_raw)
-
-        for epoch in range(self.config.n_epochs):
+        target = 1 + int(len(train_set) / self.config.batch_size)
+        prog = Progbar(target=target)
+        print('iterating over batches')
+        for i, batch in enumerate(minibatches(train_set, self.config.batch_size)):
+            prog.update(i)
+            encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
+                encoder_lengths_batch, decoder_lengths_batch = batch
+            predictions, loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+                                       decoder_inputs_batch=decoder_inputs_batch,
+                                       encoder_lengths_batch=encoder_lengths_batch,
+                                       decoder_lengths_batch=decoder_lengths_batch,
+                                       labels_batch=labels_batch,
+                                       batch_size=encoder_lengths_batch.shape[0])
+            predictions = self.index_to_word(predictions)
             print()
-            print('Epoch {} out of {}'.format(epoch + 1, self.config.n_epochs))
-            # You may use the progress bar to monitor the training progress
-            # Addition of progress bar will not be graded, but may help when debugging
-            prog = Progbar(target=1 + int(len(train_set) / self.config.batch_size))
-            for i, batch in enumerate(minibatches(train_set, self.config.batch_size)):
-                prog.update(i)
-                encoder_inputs_batch, decoder_inputs_batch, labels_batch = batch
-                encoder_lengths_batch = [len([word for word in example if word not in pad_tokens])
-                                         for example in encoder_inputs_batch]
-                decoder_lengths_batch = [len([word for word in example if word not in pad_tokens])
-                                         for example in decoder_inputs_batch]
-                loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
-                                           decoder_inputs_batch=decoder_inputs_batch,
-                                           encoder_lengths_batch=encoder_lengths_batch,
-                                           decoder_lengths_batch=decoder_lengths_batch,
-                                           labels_batch=labels_batch)
-                print(" Loss: " + str(loss))
-            predictions, loss = self.evaluate(sess, dev_set, pad_tokens)
-            print("Dev set loss: " + str(loss))
-            if epoch % 10 == 0:
-                saver.save(sess, "models//seq2seq_model.ckpt")
-        return best_score
+            print('Sample training predictions, loss = {}'.format(loss))
+            print('--------------------------')
+            print(self.print_pred(predictions[0]))
+            print()
+            with open('training_output.txt', 'a') as of:
+                of.write("")
+                of.write("Batch: {}, Loss: {}\n".format(i + 1, loss))
+            print(" Loss: " + str(loss))
+
+        #predictions, loss = self.evaluate(sess, dev_set, pad_tokens)
+        #print("Dev set loss: " + str(loss))
+        saver.save(sess, "models/seq2seq_model.ckpt")
 
 
 
