@@ -11,10 +11,10 @@ class Config:
 
     """
     dropout = 0.5
-    hidden_size = 1
-    batch_size = 1
+    hidden_size = 32
+    batch_size = 32
     n_epochs = 1000
-    lr = 0.5
+    lr = 0.05
     n_layers = 1
     beam_width = 10
     reg_weight = 0.00
@@ -35,9 +35,9 @@ class Config:
         self.mode = mode
         self.beamsearch = beamsearch
         if large:
-            self.batch_size = 1
-            self.hidden_size = 1
-            self.n_layers = 1
+            self.batch_size = 32
+            self.hidden_size = 64
+            self.n_layers = 3
 
 
 
@@ -62,9 +62,9 @@ class Seq2SeqModel(VBModel):
                          labels_batch=None, encoder_lengths_batch=None, decoder_lengths_batch=None,
                          batch_size=None, dropout=1):
         feed_dict = {
-            #self.encoder_input_placeholder: encoder_inputs_batch,
-            #self.decoder_input_placeholder: decoder_inputs_batch,
-            #self.dropout_placeholder: dropout
+            self.encoder_input_placeholder: encoder_inputs_batch,
+            self.decoder_input_placeholder: decoder_inputs_batch,
+            self.dropout_placeholder: dropout
         }
         if labels_batch is not None:
             feed_dict[self.labels_placeholder] = labels_batch
@@ -89,7 +89,7 @@ class Seq2SeqModel(VBModel):
     def add_encoder(self, encoder_in):
         encoder_lengths_constant = tf.fill(tf.shape(self.encoder_lengths_placeholder),
                                            self.config.max_encoder_timesteps)
-        if self.config.bidirectional:
+        if False:
             # forward lstm
             forward_cells = []
             for i in range(self.config.n_layers):
@@ -118,13 +118,14 @@ class Seq2SeqModel(VBModel):
                 encoder_state = tuple(encoder_state)
         else:
             # Build RNN cell
-            encoder_cells = []
-            for i in range(self.config.n_layers):
-                cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
-                cell = tf.contrib.rnn.DropoutWrapper(
-                    cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
-                encoder_cells.append(cell)
-            encoder_cell = tf.contrib.rnn.MultiRNNCell(encoder_cells)
+            #encoder_cells = []
+            #for i in range(self.config.n_layers):
+            #    cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+                #cell = tf.contrib.rnn.DropoutWrapper(
+                #    cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
+            #    encoder_cells.append(cell)
+            cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+            encoder_cell = tf.nn.rnn_cell.MultiRNNCell([cell for _ in range(self.config.n_layers)])
             # run rnn
             encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
                 cell=encoder_cell, inputs=encoder_in,
@@ -149,20 +150,17 @@ class Seq2SeqModel(VBModel):
         return decoder_cell, decoder_initial_state
 
     def add_decoder(self, decoder_in, encoder_outputs, encoder_state):
-
         #decoder_lengths_constant = tf.fill(tf.shape(self.decoder_lengths_placeholder),
         #                                   self.config.max_decoder_timesteps + 1)
-        decoder_lengths_constant = tf.constant(41, dtype=tf.int32, shape=(1,))
         decoder_cells = []
         #for i in range(self.config.n_layers):
-        #    cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
-            #cell = tf.contrib.rnn.DropoutWrapper(
-            #    cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
+        cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+        #    cell = tf.contrib.rnn.DropoutWrapper(
+        #        cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
         #    decoder_cells.append(cell)
-        #decoder_cell = tf.contrib.rnn.MultiRNNCell(decoder_cells)
-        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+        decoder_cell = tf.nn.rnn_cell.MultiRNNCell([cell for _ in range(self.config.n_layers)])
         # Helper
-        #if self.config.mode == 'TRAIN':
+        # if self.config.mode == 'TRAIN':
         '''helper = tf.contrib.seq2seq.TrainingHelper(
             decoder_in, decoder_lengths_constant
         )'''
@@ -177,10 +175,10 @@ class Seq2SeqModel(VBModel):
                     self.config.end_token
                 )
         '''
-        projection_layer = layers_core.Dense(
-            self.config.vocab_size, use_bias=False)
+        # projection_layer = layers_core.Dense(
+        #    self.config.vocab_size, use_bias=False)
 
-        #decoder_cell, decoder_initial_state = self.add_attention(encoder_outputs, encoder_state, decoder_cell)
+        decoder_cell, decoder_initial_state = self.add_attention(encoder_outputs, encoder_state, decoder_cell)
 
         # Decoder
         '''if self.config.beamsearch:
@@ -198,14 +196,15 @@ class Seq2SeqModel(VBModel):
                 output_layer=projection_layer,
                 length_penalty_weight=0.0)
         else:'''
-        decoder_initial_state = decoder_cell.zero_state(self.dynamic_batch_size, tf.float32)
+        #decoder_initial_state = decoder_cell.zero_state(self.dynamic_batch_size, tf.float32).clone(cell_state=encoder_state)
         '''decoder = tf.contrib.seq2seq.BasicDecoder(
             decoder_cell, helper, decoder_initial_state,
             output_layer=projection_layer
         )'''
+        #decoder_initial_state = (encoder_state, encoder_state)
         decoder_outputs, _ = tf.nn.dynamic_rnn(decoder_cell, decoder_in,
-                                           initial_state=decoder_initial_state,
-                                           dtype=tf.float32)
+                                               initial_state=decoder_initial_state,
+                                               dtype=tf.float32)
 
         '''decoder_outputs = tf.reshape(decoder_outputs, shape=(-1, self.config.hidden_size * self.config.max_decoder_timesteps))
         print(self.config.hidden_size)
@@ -219,17 +218,21 @@ class Seq2SeqModel(VBModel):
         logits = tf.reshape(logits, shape=(-1, self.config.max_decoder_timesteps, self.config.vocab_size))'''
         logits = tf.layers.dense(inputs=decoder_outputs, units=self.config.vocab_size, activation=tf.nn.relu)
 
+
         return logits
 
     def add_prediction_op(self):
-        #encoder_in, decoder_in = self.add_embedding()
-        #dropout_rate = self.dropout_placeholder
+        encoder_in, decoder_in = self.add_embedding()
+        #encoder_in = tf.constant(0.0, dtype=tf.float32,
+        #                         shape=(1, self.config.max_encoder_timesteps, self.config.embed_size))
 
-        #encoder_outputs, encoder_state = self.add_encoder(encoder_in)
-        decoder_in = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.max_decoder_timesteps + 1, self.config.embed_size))
-        encoder_outputs = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.max_encoder_timesteps + 1, self.config.hidden_size))
-        encoder_state = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.hidden_size))
-        logits = self.add_decoder(decoder_in, encoder_outputs, encoder_state)
+        with tf.variable_scope('encoder'):
+            encoder_outputs, encoder_state = self.add_encoder(encoder_in)
+        #decoder_in = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.max_decoder_timesteps + 1, self.config.embed_size))
+        #encoder_outputs = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.max_encoder_timesteps + 1, self.config.hidden_size))
+        #encoder_state = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.hidden_size))
+        with tf.variable_scope('decoder'):
+            logits = self.add_decoder(decoder_in, encoder_outputs, encoder_state)
 
         # Dynamic decoding
         #outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder)

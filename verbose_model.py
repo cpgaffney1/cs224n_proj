@@ -57,11 +57,12 @@ class VBModel(Model):
             loss += batch_loss
             predictions = self.index_to_word(predictions)
             print(self.print_pred(predictions[0]))
-            if write_preds:
-                with open('dev_predict.txt', 'a') as of:
-                    for p in predictions:
-                        of.write(self.print_pred(p) + '\n')
+            with open('dev_predict.txt', 'a') as of:
+               for p in predictions:
+                   of.write(self.print_pred(p) + '\n')
             count += 1
+        with open('dev_predict.txt', 'a') as of:
+            of.write('\n')
         return predictions, loss / count
 
     def index_to_word(self, predictions):
@@ -102,12 +103,10 @@ class VBModel(Model):
             print(self.print_pred(predictions[0]))
             print()
             with open('training_output.txt', 'a') as of:
-                of.write("")
                 of.write("Batch: {}, Loss: {}\n".format(i + 1, loss))
-            print(" Loss: " + str(loss))
 
-        #predictions, loss = self.evaluate(sess, dev_set, pad_tokens)
-        #print("Dev set loss: " + str(loss))
+        _, loss = self.evaluate(sess, dev_set, pad_tokens)
+        print("Dev set loss: " + str(loss))
         saver.save(sess, "models/seq2seq_model.ckpt")
 
 
