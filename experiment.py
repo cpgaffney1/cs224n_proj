@@ -84,7 +84,7 @@ def train(args):
                 randchoice = random.randint(0, len([file for file in os.listdir('data') if file.endswith('.data')]) - 1)
                 #data = load_one_datafile(randchoice)
                 data= [
-                    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(10)
+                    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(400)
                 ]
                 train_data, dev_data = split_train_dev(data)
                 model.fit(session, saver, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END])
