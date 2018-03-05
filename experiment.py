@@ -82,9 +82,12 @@ def train(args):
                     of.write('\n')
                     of.write('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
                 randchoice = random.randint(0, len([file for file in os.listdir('data') if file.endswith('.data')]) - 1)
-                data = load_one_datafile(randchoice)
-                train, dev = split_train_dev(data)
-                model.fit(session, saver, train, dev, pad_tokens=[embedder.PAD, embedder.END])
+                #data = load_one_datafile(randchoice)
+                data= [
+                    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(10)
+                ]
+                train_data, dev_data = split_train_dev(data)
+                model.fit(session, saver, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END])
 
 def evaluate(args):
     pretrained_embeddings, normal, simple, tok2id = embedder.load_embeddings(test=True)

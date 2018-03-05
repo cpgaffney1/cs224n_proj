@@ -11,10 +11,10 @@ class Config:
 
     """
     dropout = 0.5
-    hidden_size = 32
-    batch_size = 4
+    hidden_size = 1
+    batch_size = 1
     n_epochs = 1000
-    lr = 0.01
+    lr = 0.5
     n_layers = 1
     beam_width = 10
 
@@ -34,7 +34,7 @@ class Config:
         self.mode = mode
         self.beamsearch = beamsearch
         if large:
-            self.batch_size = 4
+            self.batch_size = 1
             self.hidden_size = 16
             self.n_layers = 1
 
@@ -55,15 +55,15 @@ class Seq2SeqModel(VBModel):
                                                           name='enc_lengths')
         self.decoder_lengths_placeholder = tf.placeholder(tf.int32, shape=(None,),
                                                           name='dec_lengths')
-        self.dynamic_batch_size = tf.placeholder(tf.int32, [], name='dynamic_batch_size')
+        self.dynamic_batch_size = tf.placeholder(tf.int32, shape=(), name='dynamic_batch_size')
 
     def create_feed_dict(self, encoder_inputs_batch, decoder_inputs_batch,
                          labels_batch=None, encoder_lengths_batch=None, decoder_lengths_batch=None,
                          batch_size=None, dropout=1):
         feed_dict = {
-            self.encoder_input_placeholder: encoder_inputs_batch,
-            self.decoder_input_placeholder: decoder_inputs_batch,
-            self.dropout_placeholder: dropout
+            #self.encoder_input_placeholder: encoder_inputs_batch,
+            #self.decoder_input_placeholder: decoder_inputs_batch,
+            #self.dropout_placeholder: dropout
         }
         if labels_batch is not None:
             feed_dict[self.labels_placeholder] = labels_batch
@@ -144,28 +144,28 @@ class Seq2SeqModel(VBModel):
                 cell_state=encoder_state
             )
         else:
-             decoder_initial_state = encoder_state
-
+            decoder_initial_state = encoder_state
         return decoder_cell, decoder_initial_state
 
     def add_decoder(self, decoder_in, encoder_outputs, encoder_state):
 
-        decoder_lengths_constant = tf.fill(tf.shape(self.decoder_lengths_placeholder),
-                                           self.config.max_decoder_timesteps + 1)
+        #decoder_lengths_constant = tf.fill(tf.shape(self.decoder_lengths_placeholder),
+        #                                   self.config.max_decoder_timesteps + 1)
+        decoder_lengths_constant = tf.constant(41, dtype=tf.int32, shape=(1,))
         decoder_cells = []
-        for i in range(self.config.n_layers):
-            cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
-            cell = tf.contrib.rnn.DropoutWrapper(
-                cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
-            decoder_cells.append(cell)
-        decoder_cell = tf.contrib.rnn.MultiRNNCell(decoder_cells)
-
+        #for i in range(self.config.n_layers):
+        #    cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+            #cell = tf.contrib.rnn.DropoutWrapper(
+            #    cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
+        #    decoder_cells.append(cell)
+        #decoder_cell = tf.contrib.rnn.MultiRNNCell(decoder_cells)
+        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
         # Helper
-        if self.config.mode == 'TRAIN':
-            helper = tf.contrib.seq2seq.TrainingHelper(
-                decoder_in, decoder_lengths_constant
-            )
-        else:
+        #if self.config.mode == 'TRAIN':
+        helper = tf.contrib.seq2seq.TrainingHelper(
+            decoder_in, decoder_lengths_constant
+        )
+        '''else:
             assert self.config.mode == 'TEST'
             if self.config.beamsearch:
                 helper = None
@@ -175,14 +175,14 @@ class Seq2SeqModel(VBModel):
                     tf.fill([self.dynamic_batch_size], self.config.start_token),
                     self.config.end_token
                 )
-
+        '''
         projection_layer = layers_core.Dense(
             self.config.vocab_size, use_bias=False)
 
-        decoder_cell, decoder_initial_state = self.add_attention(encoder_outputs, encoder_state, decoder_cell)
+        #decoder_cell, decoder_initial_state = self.add_attention(encoder_outputs, encoder_state, decoder_cell)
 
         # Decoder
-        if self.config.beamsearch:
+        '''if self.config.beamsearch:
             # Replicate encoder infos beam_width times
             decoder_initial_state = tf.contrib.seq2seq.tile_batch(
                 encoder_state, multiplier=self.config.beam_width)
@@ -196,20 +196,23 @@ class Seq2SeqModel(VBModel):
                 beam_width=self.config.beam_width,
                 output_layer=projection_layer,
                 length_penalty_weight=0.0)
-        else:
-            decoder = tf.contrib.seq2seq.BasicDecoder(
-                decoder_cell, helper, decoder_initial_state,
-                output_layer=projection_layer
-            )
+        else:'''
+        decoder_initial_state = decoder_cell.zero_state(self.dynamic_batch_size, tf.float32)
+        decoder = tf.contrib.seq2seq.BasicDecoder(
+            decoder_cell, helper, decoder_initial_state,
+            output_layer=projection_layer
+        )
 
         return decoder
 
     def add_prediction_op(self):
-        encoder_in, decoder_in = self.add_embedding()
-        dropout_rate = self.dropout_placeholder
+        #encoder_in, decoder_in = self.add_embedding()
+        #dropout_rate = self.dropout_placeholder
 
-        encoder_outputs, encoder_state = self.add_encoder(encoder_in)
-
+        #encoder_outputs, encoder_state = self.add_encoder(encoder_in)
+        decoder_in = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.max_decoder_timesteps + 1, self.config.embed_size))
+        encoder_outputs = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.max_encoder_timesteps + 1, self.config.hidden_size))
+        encoder_state = tf.constant(0.0, dtype=tf.float32, shape=(1, self.config.hidden_size))
         decoder = self.add_decoder(decoder_in, encoder_outputs, encoder_state)
 
         # Dynamic decoding
