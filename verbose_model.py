@@ -7,10 +7,8 @@ import logging
 import embedding_util as embedder
 from functional_util import Progbar, minibatches
 from model import Model
+import numpy as np
 
-logger = logging.getLogger("hw3")
-logger.setLevel(logging.DEBUG)
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 class VBModel(Model):
     """
@@ -38,35 +36,8 @@ class VBModel(Model):
         """
         raise NotImplementedError("Each Model must re-implement this method.")
 
-
-    def evaluate(self, sess, examples, pad_tokens, write_preds=True):
-        loss = 0.0
-        count = 0
-        predictions = []
-        print('Dev predictions')
-        print('---------------------')
-        for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
-            encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
-            encoder_lengths_batch, decoder_lengths_batch = batch
-            predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
-                                                decoder_inputs_batch=decoder_inputs_batch,
-                                                labels_batch=labels_batch,
-                                                encoder_lengths_batch=encoder_lengths_batch,
-                                                decoder_lengths_batch=decoder_lengths_batch,
-                                                batch_size=encoder_lengths_batch.shape[0])
-            loss += batch_loss
-            predictions = self.index_to_word(predictions)
-            print(self.print_pred(predictions[0]))
-            with open('dev_predict.txt', 'a') as of:
-               for p in predictions:
-                   of.write(self.print_pred(p) + '\n')
-            count += 1
-        with open('dev_predict.txt', 'a') as of:
-            of.write('\n')
-        return predictions, loss / count
-
     def index_to_word(self, predictions):
-        sentences = [[] for _ in predictions]
+        sentences = ['' for _ in predictions]
         for i, example in enumerate(predictions):
             sentences[i] = ' '.join([embedder.id2tok.get(id_num, '<unk>') for id_num in example])
         return sentences
@@ -78,36 +49,68 @@ class VBModel(Model):
         else:
             return pred[:end + 1]
 
-    def fit(self, sess, saver, train_examples_raw, dev_set_raw, pad_tokens=None):
-        if pad_tokens is None:
-            pad_tokens = []
-        train_set = self.preprocess_sequence_data(train_examples_raw)
-        dev_set = self.preprocess_sequence_data(dev_set_raw)
-        target = 1 + int(len(train_set) / self.config.batch_size)
-        prog = Progbar(target=target)
-        print('iterating over batches')
-        for i, batch in enumerate(minibatches(train_set, self.config.batch_size)):
-            prog.update(i)
+    def get_batch_list(self, data, batch_size):
+        np.random.shuffle(data)
+        length = len(data)
+        batch_list = []
+        data = [np.array(col) for col in zip(*data)]
+        for i in range(int(length / batch_size)):
+            batch_list.append([col[i * batch_size: (i + 1) * batch_size] for col in data])
+        return batch_list
+
+    def evaluate(self, sess, examples, pad_tokens, write_preds=True):
+        loss = 0.0
+        count = 0
+        predictions = []
+        print('Dev predictions')
+        print('---------------------')
+        for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
             encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
                 encoder_lengths_batch, decoder_lengths_batch = batch
+            predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+                                                            decoder_inputs_batch=decoder_inputs_batch,
+                                                            labels_batch=labels_batch,
+                                                            encoder_lengths_batch=encoder_lengths_batch,
+                                                            decoder_lengths_batch=decoder_lengths_batch,
+                                                            batch_size=encoder_lengths_batch.shape[0])
+            loss += batch_loss
+            predictions = self.index_to_word(predictions)
+            print(self.print_pred(predictions[0]))
+            with open('dev_predict.txt', 'a') as of:
+                for p in predictions:
+                    of.write(self.print_pred(p) + '\n')
+            count += 1
+        with open('dev_predict.txt', 'a') as of:
+            of.write('\n')
+        return predictions, loss / count
+
+    def fit(self, sess, saver, train_examples, dev_set, pad_tokens=None):
+        if pad_tokens is None:
+            pad_tokens = []
+        target = 1 + int(len(train_examples) / self.config.batch_size)
+        prog = Progbar(target=target)
+        print('iterating over batches')
+        overall_loss = 0.0
+        for i, batch in enumerate(minibatches(train_examples, self.config.batch_size)):
+            prog.update(i)
+            encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
+            encoder_lengths_batch, decoder_lengths_batch = batch
             predictions, loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
-                                       decoder_inputs_batch=decoder_inputs_batch,
-                                       encoder_lengths_batch=encoder_lengths_batch,
-                                       decoder_lengths_batch=decoder_lengths_batch,
-                                       labels_batch=labels_batch,
-                                       batch_size=encoder_lengths_batch.shape[0])
+                                                    decoder_inputs_batch=decoder_inputs_batch,
+                                                    encoder_lengths_batch=encoder_lengths_batch,
+                                                    decoder_lengths_batch=decoder_lengths_batch,
+                                                    labels_batch=labels_batch,
+                                                    batch_size=encoder_lengths_batch.shape[0])
+            overall_loss += loss
             predictions = self.index_to_word(predictions)
             print()
-            print('Sample training predictions, loss = {}'.format(loss))
+            print('Sample training predictions, loss = {}'.format(overall_loss / (i + 1)))
             print('--------------------------')
             print(self.print_pred(predictions[0]))
             print()
             with open('training_output.txt', 'a') as of:
-                of.write("Batch: {}, Loss: {}\n".format(i + 1, loss))
+                of.write("Batch: {}, Loss: {}\n".format(i + 1, overall_loss / (i + 1)))
 
         _, loss = self.evaluate(sess, dev_set, pad_tokens)
         print("Dev set loss: " + str(loss))
         saver.save(sess, "models/seq2seq_model.ckpt")
-
-
-

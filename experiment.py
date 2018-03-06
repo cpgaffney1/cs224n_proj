@@ -27,7 +27,8 @@ def load_and_split(args):
         return pred[:pred.find('<end>')]
 
     # simple and normal are just a list of sentences (as strings)
-    pretrained_embeddings, normal, simple, tok2id = embedder.load_embeddings()
+    _, _, _, tok2id = embedder.load_embeddings(mode='full')
+    _, normal, simple, _ = embedder.load_embeddings(mode='train')
     data = make_seq2seq_data(simple, normal, embedder.START, embedder.END, embedder.PAD, tok2id)
     random.shuffle(data)
     obs_per_file = 512
@@ -41,7 +42,7 @@ def load_one_datafile(filenum):
     return data
 
 def train(args):
-    pretrained_embeddings, _, _, tok2id = embedder.load_embeddings(large=args.large)
+    pretrained_embeddings, _, _, tok2id = embedder.load_embeddings(large=args.large, mode='full')
     # clear training log file
     with open('training_output.txt', 'w') as of:
         print('Beginning train with params:')
@@ -61,7 +62,7 @@ def train(args):
         start = time.time()
         config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
                         parser_util.max_encoder_timesteps, parser_util.max_decoder_timesteps,
-                        embedder.PAD, embedder.START, embedder.END, args.attention, args.bidirectional,
+                        embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                         large=args.large)
         model = Seq2SeqModel(config, pretrained_embeddings)
         print("took %.2f seconds", time.time() - start)
@@ -89,14 +90,16 @@ def train(args):
                 model.fit(session, saver, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END])
 
 def evaluate(args):
-    pretrained_embeddings, normal, simple, tok2id = embedder.load_embeddings(test=True)
+    pretrained_embeddings, _, _, tok2id = embedder.load_embeddings(large=args.large, mode='full')
+    _, normal, simple, _ = embedder.load_embeddings(large=args.large, mode='test')
     data = make_seq2seq_data(simple, normal, embedder.START, embedder.END, embedder.PAD, tok2id)
     tf.reset_default_graph()
 
     with tf.Graph().as_default():
         config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
                         parser_util.max_encoder_timesteps, parser_util.max_decoder_timesteps,
-                        embedder.PAD, embedder.START, embedder.END, args.attention, args.bidirectional, mode='TEST', beamsearch=args.beamsearch)
+                        embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional, mode='TEST',
+                        beamsearch=args.beamsearch, large=args.large)
         model = Seq2SeqModel(config, pretrained_embeddings)
         saver = tf.train.Saver()
         with tf.Session() as session:
@@ -127,13 +130,15 @@ if __name__ == '__main__':
     command_parser.add_argument('-m', '--buildmodel', action='store_true', default=False,
                                 help="Build model and exit")
     command_parser.add_argument('-l', '--large', action='store_true', default=False,
-                                help="Build model and exit")
+                                help="Larger model")
     command_parser.add_argument('-a', '--attention', action='store_true', default=False, help="Use attention")
     command_parser.add_argument('-b', '--bidirectional', action='store_true', default=False, help="Use bidirectional")
     command_parser.set_defaults(func=train)
 
     command_parser = subparsers.add_parser('eval', help='evaluate model')
     command_parser.add_argument('-a', '--attention', action='store_true', default=False, help="Use attention")
+    command_parser.add_argument('-l', '--large', action='store_true', default=False,
+                                help="Larger model")
     command_parser.add_argument('-b', '--bidirectional', action='store_true', default=False, help="Use bidirectional")
     command_parser.add_argument('-bs', '--beamsearch', action='store_true', default=False,
                                 help="Use beam search decoding")

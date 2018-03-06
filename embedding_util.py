@@ -5,7 +5,7 @@ import parser_util
 import codecs
 
 class Config(object):
-    large_embedding_file = 'data//glove.6B.50d.txt'
+    large_embedding_file = 'data//glove.6B.100d.txt'
     small_embedding_file = 'data//glove.6B.50d.txt'
     unlabeled = True
     lowercase = True
@@ -66,7 +66,7 @@ def get_embeddings_matrix(n_tokens, large=False):
     embeddings_matrix = np.asarray(np.random.normal(0, 0.9, (n_tokens, embed_size)), dtype='float32')
     return embeddings_matrix, word_vectors
 
-def load_embeddings(large=False,data_filename=None,test=False):
+def load_embeddings(large=False, mode='full'):
     print("Loading pretrained embeddings...")
     start = time.time()
     global embed_size
@@ -74,10 +74,7 @@ def load_embeddings(large=False,data_filename=None,test=False):
     global tok2id
     global id2tok
 
-    if data_filename is None:
-        normal, simple = parser_util.parse_pwkp(test=test)
-    else:
-        normal, simple = parser_util.parse_pwkp(filename=data_filename, test=test)
+    normal, simple = parser_util.parse_pwkp(mode=mode)
     tok2id, id2tok = get_id_mapping(normal + simple)
 
     embeddings_matrix, word_vectors = get_embeddings_matrix(len(tok2id), large=large)

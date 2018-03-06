@@ -4,11 +4,12 @@ import numpy as np
 class Config(object):
     normal_file = 'data//normal.aligned'
     simple_file = 'data//simple.aligned'
-    pwkp_file = 'data//PWKP_108016.txt'
+    pwkp_file_full = 'data//PWKP_full.txt'
+    pwkp_file = 'data//PWKP_train.txt'
     pwkp_test = 'data//PWKP_test.txt'
 
-max_encoder_timesteps = 20
-max_decoder_timesteps = 40
+max_encoder_timesteps = 30
+max_decoder_timesteps = 50
 
 
 
@@ -64,8 +65,13 @@ def parse_aligned():
             simple.append(sp[2])
     return normal, simple
 
-def parse_pwkp(filename=Config().pwkp_file, test=False):
-    if test:
+def parse_pwkp(mode='full'):
+    if mode == 'full':
+        filename = Config().pwkp_file_full
+    elif mode == 'train':
+        filename = Config().pwkp_file
+    else:
+        assert(mode == 'test')
         filename = Config().pwkp_test
     global max_encoder_timesteps
     global max_decoder_timesteps
