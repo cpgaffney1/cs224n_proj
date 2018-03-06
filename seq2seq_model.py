@@ -87,10 +87,15 @@ class Seq2SeqModel(VBModel):
         decoder_embeddings = tf.cast(decoder_embeddings, tf.float32)
         return encoder_embeddings, decoder_embeddings
 
+    def get_lstm_cell(self):
+        lstm = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
+        drop = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0 - self.dropout_placeholder)
+        return drop
+
     def add_encoder(self, encoder_in):
-        encoder_lengths_constant = tf.fill(tf.shape(self.encoder_lengths_placeholder),
-                                           self.config.max_encoder_timesteps)
-        if False:
+        #encoder_lengths_constant = tf.fill(tf.shape(self.encoder_lengths_placeholder),
+        #                                   self.config.max_encoder_timesteps)
+        '''if False:
             # forward lstm
             forward_cells = []
             for i in range(self.config.n_layers):
@@ -117,21 +122,13 @@ class Seq2SeqModel(VBModel):
                     encoder_state.append(bi_encoder_state[0][layer_id])  # forward
                     encoder_state.append(bi_encoder_state[1][layer_id])  # backward
                 encoder_state = tuple(encoder_state)
-        else:
-            print(self.config.hidden_size)
-            cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
-            cell = tf.contrib.rnn.DropoutWrapper(
-                cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
-            encoder_cell = tf.nn.rnn_cell.MultiRNNCell([cell for _ in range(self.config.n_layers)])
-            # run rnn
-            print(encoder_cell)
-            print(encoder_in)
-            print(encoder_lengths_constant)
-            encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
-                cell=encoder_cell, inputs=encoder_in,
-                sequence_length=encoder_lengths_constant,
-                dtype=tf.float32
-            )
+        else:'''
+        encoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
+        encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
+            cell=encoder_cell, inputs=encoder_in,
+            # sequence_length=encoder_lengths_constant,
+            dtype=tf.float32
+        )
 
         return encoder_outputs, encoder_state
 
@@ -152,10 +149,7 @@ class Seq2SeqModel(VBModel):
     def add_decoder(self, decoder_in, encoder_outputs, encoder_state):
         decoder_lengths_constant = tf.fill(tf.shape(self.decoder_lengths_placeholder),
                                            self.config.max_decoder_timesteps + 1)
-        cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
-        cell = tf.contrib.rnn.DropoutWrapper(
-            cell=cell, input_keep_prob=(1.0 - self.dropout_placeholder))
-        decoder_cell = tf.nn.rnn_cell.MultiRNNCell([cell for _ in range(self.config.n_layers)])
+        decoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
         # Helper
         if self.config.mode == 'TRAIN':
             helper = tf.contrib.seq2seq.TrainingHelper(
