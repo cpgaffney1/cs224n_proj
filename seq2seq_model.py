@@ -14,7 +14,7 @@ class Config:
     hidden_size = 32
     batch_size = 32
     n_epochs = 1000
-    lr = 0.01
+    lr = 0.001
     n_layers = 1
     beam_width = 10
     reg_weight = 0.00
