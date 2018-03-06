@@ -14,7 +14,7 @@ max_decoder_timesteps = 50
 
 
 # start, end are vectors for start and end tokens
-def make_seq2seq_data(simple, normal, start, end, pad, tok2id):
+def make_seq2seq_data(simple, normal, start, end, pad, tok2id, id2tok=None):
     global max_decoder_timesteps
     global max_encoder_timesteps
     skipped_count = 0
@@ -30,6 +30,8 @@ def make_seq2seq_data(simple, normal, start, end, pad, tok2id):
         offset = max_encoder_timesteps - len(sentence)
         for j in range(offset, max_encoder_timesteps):
             enc[j] = tok2id[sentence[j - offset]]
+            if id2tok is not None:
+                assert(id2tok[enc[j]] == sentence[j-offset])
 
         dec = [tok2id[end]] * max_decoder_timesteps
         sentence = normal[i].split(' ')
@@ -39,6 +41,8 @@ def make_seq2seq_data(simple, normal, start, end, pad, tok2id):
         dec_len = len(sentence)
         for j in range(len(sentence)):
             dec[j] = tok2id[sentence[j]]
+            if id2tok is not None:
+                assert(id2tok[dec[j]] == sentence[j])
 
         assert(enc_len <= max_encoder_timesteps)
         assert(dec_len <= max_decoder_timesteps)
