@@ -39,7 +39,7 @@ class VBModel(Model):
     def index_to_word(self, predictions):
         sentences = ['' for _ in predictions]
         for i, example in enumerate(predictions):
-            sentences[i] = ' '.join([embedder.id2tok.get(id_num, '<unk>') for id_num in example])
+            sentences[i] = ' '.join([self.config.id2tok.get(id_num, '<unk>') for id_num in example])
         return sentences
 
     def print_pred(self, pred):

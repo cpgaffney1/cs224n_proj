@@ -93,5 +93,5 @@ def load_embeddings(large=False, mode='full'):
     print("took {:.2f} seconds".format(time.time() - start))
     vocab_size = len(embeddings_matrix)
 
-    return embeddings_matrix, normal, simple, tok2id
+    return embeddings_matrix, normal, simple, tok2id, id2tok
 

@@ -21,7 +21,7 @@ class Config:
     max_gradient_norm = 5.0
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
-                 pad_token, start_token, end_token, attention, bidirectional, beamsearch=False,
+                 pad_token, start_token, end_token, attention, bidirectional, id2tok, beamsearch=False,
                  mode='TRAIN', large=True):
         self.embed_size = embed_size
         self.vocab_size = vocab_size
@@ -34,6 +34,7 @@ class Config:
         self.bidirectional = bidirectional
         self.mode = mode
         self.beamsearch = beamsearch
+        self.id2tok = id2tok
         if large:
             self.dropout = 0.4
             self.batch_size = 32
