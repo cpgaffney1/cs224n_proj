@@ -107,10 +107,11 @@ class VBModel(Model):
             print('Sample training predictions, loss = {}'.format(overall_loss / (i + 1)))
             print('--------------------------')
             print(self.print_pred(predictions[0]))
+            print(self.print_pred(predictions[1]))
             print()
             with open('training_output.txt', 'a') as of:
                 of.write("Batch: {}, Loss: {}\n".format(i + 1, overall_loss / (i + 1)))
 
-        _, loss = self.evaluate(sess, dev_set, pad_tokens)
-        print("Dev set loss: " + str(loss))
-        saver.save(sess, "models/seq2seq_model.ckpt")
+        #_, loss = self.evaluate(sess, dev_set, pad_tokens)
+        #print("Dev set loss: " + str(loss))
+        #saver.save(sess, "models/seq2seq_model.ckpt")

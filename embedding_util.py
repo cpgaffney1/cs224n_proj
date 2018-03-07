@@ -5,7 +5,8 @@ import parser_util
 import codecs
 
 class Config(object):
-    large_embedding_file = 'data//glove.6B.100d.txt'
+    large_embedding_file = 'data//glove.6B.300d.txt'
+    medium_embedding_file = 'data//glove.6B.300d.txt'
     small_embedding_file = 'data//glove.6B.50d.txt'
     unlabeled = True
     lowercase = True
