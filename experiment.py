@@ -78,6 +78,7 @@ def train(args):
         saver = tf.train.Saver()
         with tf.Session() as session:
             if args.resume:
+                print('resuming from previous checkpoint')
                 saver.restore(session, 'models/seq2seq_model.ckpt')
             else:
                 session.run(init)

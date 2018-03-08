@@ -14,7 +14,7 @@ class Config:
     dropout = 0.0
     hidden_size = 32
     batch_size = 32
-    n_epochs = 138
+    n_epochs = 142
     lr = 0.01
     n_layers = 1
     beam_width = 10
@@ -38,7 +38,7 @@ class Config:
         self.id2tok = id2tok
         if large:
             self.dropout = 0.2
-            self.batch_size = 32
+            self.batch_size = 64
             self.hidden_size = 128
             self.n_layers = 2
 
