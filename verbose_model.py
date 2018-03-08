@@ -119,8 +119,8 @@ class VBModel(Model):
             with open('training_output.txt', 'a') as of:
                 of.write("Batch: {}, Loss: {}\n".format(i + 1, self.train_loss_sum / self.total_batches_done))
 
-        #_, loss = self.evaluate(sess, dev_set, pad_tokens)
-        #print("Dev set loss: " + str(loss))
+        _, loss = self.evaluate(sess, dev_set, pad_tokens)
+        print("Dev set loss: " + str(loss))
         if epoch % 10 == 0 and self.dev_loss_sum / self.total_batches_done < self.best_dev_loss:
             saver.save(sess, "models/seq2seq_model{}.ckpt".format(epoch))
             self.best_dev_loss = self.dev_loss_sum / self.total_batches_done
