@@ -8,8 +8,8 @@ class Config(object):
     pwkp_file = 'data//PWKP_train.txt'
     pwkp_test = 'data//PWKP_test.txt'
 
-max_encoder_timesteps = 30
-max_decoder_timesteps = 50
+max_encoder_timesteps = 20
+max_decoder_timesteps = 40
 
 
 
