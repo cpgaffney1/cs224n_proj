@@ -22,6 +22,7 @@ class VBModel(Model):
         self.dev_loss_sum = 0
         self.train_loss_sum = 0
         self.total_batches_done = 0
+        self.best_dev_loss = float('inf')
 
     def preprocess_sequence_data(self, examples):
         """Preprocess sequence data for the model.
@@ -85,7 +86,7 @@ class VBModel(Model):
             of.write('\n')
         return predictions, self.dev_loss_sum / self.total_batches_done
 
-    def fit(self, sess, saver, train_examples, dev_set, pad_tokens=None):
+    def fit(self, sess, saver, train_examples, dev_set, pad_tokens=None, epoch=0):
         if pad_tokens is None:
             pad_tokens = []
         target = 1 + int(len(train_examples) / self.config.batch_size)
@@ -97,6 +98,9 @@ class VBModel(Model):
             start_batch = time.time()
             encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
             encoder_lengths_batch, decoder_lengths_batch = batch
+            #print(self.print_pred(self.index_to_word(encoder_inputs_batch)[0]))
+            #print(self.print_pred(self.index_to_word(decoder_inputs_batch)[0]))
+            #print(self.print_pred(self.index_to_word(labels_batch)[0]))
             predictions, loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                     decoder_inputs_batch=decoder_inputs_batch,
                                                     encoder_lengths_batch=encoder_lengths_batch,
@@ -117,6 +121,12 @@ class VBModel(Model):
 
         #_, loss = self.evaluate(sess, dev_set, pad_tokens)
         #print("Dev set loss: " + str(loss))
-        #saver.save(sess, "models/seq2seq_model.ckpt")
+        if epoch % 10 == 0 and self.dev_loss_sum / self.total_batches_done < self.best_dev_loss:
+            saver.save(sess, "models/seq2seq_model{}.ckpt".format(epoch))
+            self.best_dev_loss = self.dev_loss_sum / self.total_batches_done
+        with open('train_loss.txt', 'a') as of:
+            of.write("{}".format(self.train_loss_sum / self.total_batches_done))
+        with open('dev_loss.txt', 'a') as of:
+            of.write("{}".format(self.dev_loss_sum / self.total_batches_done))
         print('Epoch took {} sec'.format(time.time() - start_epoch))
 

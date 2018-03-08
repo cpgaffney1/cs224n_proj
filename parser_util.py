@@ -11,8 +11,6 @@ class Config(object):
 max_simple_timesteps = 20
 max_normal_timesteps = 40
 
-
-
 # start, end are vectors for start and end tokens
 def make_seq2seq_data(simple, normal, start, end, pad, tok2id, id2tok=None):
     global max_normal_timesteps
@@ -48,6 +46,47 @@ def make_seq2seq_data(simple, normal, start, end, pad, tok2id, id2tok=None):
         assert(dec_len <= max_normal_timesteps)
         assert(len(enc) <= max_simple_timesteps)
         assert(len(dec) <= max_normal_timesteps)
+        data.append((enc, [tok2id[start]] + dec, dec + [tok2id[end]], enc_len, dec_len))
+
+    print('skipped {} long sentences'.format(skipped_count))
+    return data
+
+# start, end are vectors for start and end tokens
+def make_seq2seq_data_v2(simple, normal, start, end, pad, tok2id, id2tok=None):
+    global max_normal_timesteps
+    global max_simple_timesteps
+    skipped_count = 0
+    assert(len(simple) == len(normal))
+    data = []
+    for i in range(len(simple)):
+        dec = [tok2id[end]] * max_simple_timesteps
+        sentence = simple[i].split(' ')
+        dec_len = len(sentence)
+        if len(sentence) + 1 > max_simple_timesteps:
+            skipped_count += 1
+            continue
+        for j in range(len(sentence)):
+            dec[j] = tok2id[sentence[j]]
+            if id2tok is not None:
+                assert(id2tok[dec[j]] == sentence[j])
+
+        enc = [tok2id[pad]] * max_normal_timesteps
+        sentence = normal[i].split(' ')
+        if len(sentence) > max_normal_timesteps:
+            skipped_count += 1
+            continue
+        offset = max_normal_timesteps - len(sentence)
+        enc_len = len(sentence)
+        assert(len(sentence) <= max_normal_timesteps)
+        for j in range(offset, max_normal_timesteps):
+            enc[j] = tok2id[sentence[j - offset]]
+            if id2tok is not None:
+                assert(id2tok[enc[j]] == sentence[j-offset])
+
+        assert(enc_len <= max_normal_timesteps)
+        assert(dec_len <= max_simple_timesteps)
+        assert(len(enc) <= max_normal_timesteps)
+        assert(len(dec) <= max_simple_timesteps)
         data.append((enc, [tok2id[start]] + dec, dec + [tok2id[end]], enc_len, dec_len))
 
     print('skipped {} long sentences'.format(skipped_count))

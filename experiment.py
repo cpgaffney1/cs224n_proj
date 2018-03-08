@@ -1,4 +1,4 @@
-from parser_util import make_seq2seq_data
+from parser_util import make_seq2seq_data, make_seq2seq_data_v2
 import parser_util
 import embedding_util as embedder
 from seq2seq_model import Seq2SeqModel, Config
@@ -30,7 +30,7 @@ def load_and_split(args):
     _, _, _, tok2id, id2tok = embedder.load_embeddings(mode='full')
     _, normal, simple, _, _ = embedder.load_embeddings(mode='train')
 
-    data = make_seq2seq_data(simple, normal, embedder.START, embedder.END, embedder.PAD, tok2id, id2tok=id2tok)
+    data = make_seq2seq_data_v2(simple, normal, embedder.START, embedder.END, embedder.PAD, tok2id, id2tok=id2tok)
     random.shuffle(data)
     obs_per_file = 512
     for i in range(int(len(data) / obs_per_file)):
@@ -57,12 +57,17 @@ def train(args):
     else:
         with open('dev_predict.txt', 'w') as of:
             of.write('\n')
+        with open('train_loss.txt', 'w') as of:
+            of.write('\n')
+        with open('dev_loss.txt', 'w') as of:
+            of.write('\n')
+
 
     with tf.Graph().as_default():
         print("Building model...",)
         start = time.time()
         config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                        parser_util.max_encoder_timesteps, parser_util.max_decoder_timesteps,
+                        parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                         embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                         id2tok,
                         large=args.large)
@@ -91,7 +96,7 @@ def train(args):
                 #    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(400)
                 #]
                 train_data, dev_data = split_train_dev(data)
-                model.fit(session, saver, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END])
+                model.fit(session, saver, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
 
 def evaluate(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
@@ -101,7 +106,7 @@ def evaluate(args):
 
     with tf.Graph().as_default():
         config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                        parser_util.max_encoder_timesteps, parser_util.max_decoder_timesteps,
+                        parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                         embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                         id2tok, mode='TEST',
                         beamsearch=args.beamsearch, large=args.large)
