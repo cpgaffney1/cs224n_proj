@@ -8,34 +8,34 @@ class Config(object):
     pwkp_file = 'data//PWKP_train.txt'
     pwkp_test = 'data//PWKP_test.txt'
 
-max_encoder_timesteps = 20
-max_decoder_timesteps = 40
+max_simple_timesteps = 20
+max_normal_timesteps = 40
 
 
 
 # start, end are vectors for start and end tokens
 def make_seq2seq_data(simple, normal, start, end, pad, tok2id, id2tok=None):
-    global max_decoder_timesteps
-    global max_encoder_timesteps
+    global max_normal_timesteps
+    global max_simple_timesteps
     skipped_count = 0
     assert(len(simple) == len(normal))
     data = []
     for i in range(len(simple)):
-        enc = [tok2id[pad]] * max_encoder_timesteps
+        enc = [tok2id[pad]] * max_simple_timesteps
         sentence = simple[i].split(' ')
         enc_len = len(sentence)
-        if len(sentence) > max_encoder_timesteps:
+        if len(sentence) > max_simple_timesteps:
             skipped_count += 1
             continue
-        offset = max_encoder_timesteps - len(sentence)
-        for j in range(offset, max_encoder_timesteps):
+        offset = max_simple_timesteps - len(sentence)
+        for j in range(offset, max_simple_timesteps):
             enc[j] = tok2id[sentence[j - offset]]
             if id2tok is not None:
                 assert(id2tok[enc[j]] == sentence[j-offset])
 
-        dec = [tok2id[end]] * max_decoder_timesteps
+        dec = [tok2id[end]] * max_normal_timesteps
         sentence = normal[i].split(' ')
-        if len(sentence) + 1 > max_decoder_timesteps:
+        if len(sentence) + 1 > max_normal_timesteps:
             skipped_count += 1
             continue
         dec_len = len(sentence)
@@ -44,10 +44,10 @@ def make_seq2seq_data(simple, normal, start, end, pad, tok2id, id2tok=None):
             if id2tok is not None:
                 assert(id2tok[dec[j]] == sentence[j])
 
-        assert(enc_len <= max_encoder_timesteps)
-        assert(dec_len <= max_decoder_timesteps)
-        assert(len(enc) <= max_encoder_timesteps)
-        assert(len(dec) <= max_decoder_timesteps)
+        assert(enc_len <= max_simple_timesteps)
+        assert(dec_len <= max_normal_timesteps)
+        assert(len(enc) <= max_simple_timesteps)
+        assert(len(dec) <= max_normal_timesteps)
         data.append((enc, [tok2id[start]] + dec, dec + [tok2id[end]], enc_len, dec_len))
 
     print('skipped {} long sentences'.format(skipped_count))

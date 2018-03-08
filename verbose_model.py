@@ -8,6 +8,7 @@ import embedding_util as embedder
 from functional_util import Progbar, minibatches
 from model import Model
 import numpy as np
+import time
 
 
 class VBModel(Model):
@@ -18,6 +19,9 @@ class VBModel(Model):
     def __init__(self, config, report=None):
         self.config = config
         self.report = report
+        self.dev_loss_sum = 0
+        self.train_loss_sum = 0
+        self.total_batches_done = 0
 
     def preprocess_sequence_data(self, examples):
         """Preprocess sequence data for the model.
@@ -47,7 +51,7 @@ class VBModel(Model):
         if end == -1:
             return pred
         else:
-            return pred[:end + 1]
+            return pred[:end]
 
     def get_batch_list(self, data, batch_size):
         np.random.shuffle(data)
@@ -59,8 +63,6 @@ class VBModel(Model):
         return batch_list
 
     def evaluate(self, sess, examples, pad_tokens, write_preds=True):
-        loss = 0.0
-        count = 0
         predictions = []
         print('Dev predictions')
         print('---------------------')
@@ -73,16 +75,15 @@ class VBModel(Model):
                                                             encoder_lengths_batch=encoder_lengths_batch,
                                                             decoder_lengths_batch=decoder_lengths_batch,
                                                             batch_size=encoder_lengths_batch.shape[0])
-            loss += batch_loss
+            self.dev_loss_sum += batch_loss
             predictions = self.index_to_word(predictions)
             print(self.print_pred(predictions[0]))
             with open('dev_predict.txt', 'a') as of:
                 for p in predictions:
                     of.write(self.print_pred(p) + '\n')
-            count += 1
         with open('dev_predict.txt', 'a') as of:
             of.write('\n')
-        return predictions, loss / count
+        return predictions, self.dev_loss_sum / self.total_batches_done
 
     def fit(self, sess, saver, train_examples, dev_set, pad_tokens=None):
         if pad_tokens is None:
@@ -90,9 +91,10 @@ class VBModel(Model):
         target = 1 + int(len(train_examples) / self.config.batch_size)
         prog = Progbar(target=target)
         print('iterating over batches')
-        overall_loss = 0.0
+        start_epoch = time.time()
         for i, batch in enumerate(minibatches(train_examples, self.config.batch_size)):
             prog.update(i)
+            start_batch = time.time()
             encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
             encoder_lengths_batch, decoder_lengths_batch = batch
             predictions, loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
@@ -101,16 +103,20 @@ class VBModel(Model):
                                                     decoder_lengths_batch=decoder_lengths_batch,
                                                     labels_batch=labels_batch,
                                                     batch_size=encoder_lengths_batch.shape[0])
-            overall_loss += loss
+            self.train_loss_sum += loss
+            self.total_batches_done += 1
             predictions = self.index_to_word(predictions)
             print()
-            print('Sample training predictions, loss = {}'.format(overall_loss / (i + 1)))
+            print('Loss = {}'.format(self.train_loss_sum / self.total_batches_done))
             print('--------------------------')
             print(self.print_pred(predictions[0]))
+            print('Batch took {} sec'.format(time.time() - start_batch))
             print()
             with open('training_output.txt', 'a') as of:
-                of.write("Batch: {}, Loss: {}\n".format(i + 1, overall_loss / (i + 1)))
+                of.write("Batch: {}, Loss: {}\n".format(i + 1, self.train_loss_sum / self.total_batches_done))
 
-        _, loss = self.evaluate(sess, dev_set, pad_tokens)
-        print("Dev set loss: " + str(loss))
-        saver.save(sess, "models/seq2seq_model.ckpt")
+        #_, loss = self.evaluate(sess, dev_set, pad_tokens)
+        #print("Dev set loss: " + str(loss))
+        #saver.save(sess, "models/seq2seq_model.ckpt")
+        print('Epoch took {} sec'.format(time.time() - start_epoch))
+

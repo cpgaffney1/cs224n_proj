@@ -84,7 +84,9 @@ def train(args):
                 with open('training_output.txt', 'a') as of:
                     of.write('Epoch {} out of {}\n'.format(epoch + 1, config.n_epochs))
                 randchoice = random.randint(0, len([file for file in os.listdir('data') if file.endswith('.data')]) - 1)
+                randchoice = 0
                 data = load_one_datafile(randchoice)
+                data = data[:20]
                 #data= [
                 #    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(400)
                 #]
@@ -109,6 +111,8 @@ def evaluate(args):
             saver.restore(session, 'models/seq2seq_model.ckpt')
             predictions, loss = model.evaluate(session, data, pad_tokens=[embedder.PAD, embedder.END])
             predictions = model.index_to_word(predictions)
+            length_dif_sum_pred = 0
+            length_dif_sum_actual = 0
             for i in range(len(predictions)):
                 print('INPUT')
                 print(simple[i])
@@ -117,8 +121,13 @@ def evaluate(args):
                 print(normal[i])
                 print('---------')
                 print('PREDICTED')
-                model.print_pred(predictions[i])
+                print(model.print_pred(predictions[i]))
                 print()
+                length_dif_sum_pred += (len(model.print_pred(predictions[i]).split(' ')) - len(simple[i].split(' ')))
+                length_dif_sum_actual += (len(normal[i].split(' ')) - len(simple[i].split(' ')))
+            print('Average length differences for predicted and actual.')
+            print('Actual: {}'.format(length_dif_sum_actual / len(predictions)))
+            print('Predicted: {}'.format(length_dif_sum_pred / len(predictions)))
             with open('eval_predictions.txt', 'w') as of:
                 for pred in predictions:
                     of.write(model.print_pred(pred))

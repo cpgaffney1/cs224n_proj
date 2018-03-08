@@ -1,7 +1,7 @@
 import tensorflow as tf
 from verbose_model import VBModel
 from tensorflow.python.layers import core as layers_core
-
+import numpy as np
 
 class Config:
     """Holds model hyperparams and data information.
@@ -14,8 +14,8 @@ class Config:
     dropout = 0.0
     hidden_size = 32
     batch_size = 32
-    n_epochs = 1000
-    lr = 0.01
+    n_epochs = 138
+    lr = 0.1
     n_layers = 1
     beam_width = 10
     reg_weight = 0.00
@@ -37,7 +37,7 @@ class Config:
         self.beamsearch = beamsearch
         self.id2tok = id2tok
         if large:
-            self.dropout = 0.0
+            self.dropout = 0.2
             self.batch_size = 32
             self.hidden_size = 64
             self.n_layers = 2
@@ -96,41 +96,24 @@ class Seq2SeqModel(VBModel):
     def add_encoder(self, encoder_in):
         # encoder_lengths_constant = tf.fill(tf.shape(self.encoder_lengths_placeholder),
         #                                   self.config.max_encoder_timesteps)
-        '''if False:
+        if self.config.bidirectional:
             # forward lstm
-            forward_cells = []
-            for i in range(self.config.n_layers):
-                forward_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
-            forward_cell = tf.contrib.rnn.MultiRNNCell(forward_cells)
-
+            forward_cells = [self.get_lstm_cell() for _ in range(self.config.n_layers)]
             # backward lstm
-            backward_cells = []
-            for i in range(self.config.n_layers):
-                backward_cells.append(tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size))
-            backward_cell = tf.contrib.rnn.MultiRNNCell(backward_cells)
-            (output_fw, output_bw), bi_encoder_state = tf.nn.bidirectional_dynamic_rnn(
-                forward_cell, backward_cell, encoder_in,
-                sequence_length=encoder_lengths_constant,
+            backward_cells = [self.get_lstm_cell() for _ in range(self.config.n_layers)]
+            encoder_outputs, fw_state, bw_state = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(
+                forward_cells, backward_cells, encoder_in,
                 dtype=tf.float32
             )
-            encoder_outputs = tf.concat([output_fw, output_bw], axis=-1)
-            if self.config.n_layers == 1:
-                encoder_state = bi_encoder_state
-            else:
-                # alternatively concat forward and backward states
-                encoder_state = []
-                for layer_id in range(self.config.n_layers):
-                    encoder_state.append(bi_encoder_state[0][layer_id])  # forward
-                    encoder_state.append(bi_encoder_state[1][layer_id])  # backward
-                encoder_state = tuple(encoder_state)
-        else:'''
-        encoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
-        encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
-            cell=encoder_cell, inputs=encoder_in,
-            # sequence_length=encoder_lengths_constant,
-            dtype=tf.float32
-        )
-
+            encoder_state = fw_state
+        else:
+            encoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
+            encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
+                cell=encoder_cell, inputs=encoder_in,
+                # sequence_length=encoder_lengths_constant,
+                dtype=tf.float32
+            )
+        print(encoder_state)
         return encoder_outputs, encoder_state
 
     def add_attention(self, encoder_outputs, encoder_state, decoder_cell):
@@ -183,8 +166,18 @@ class Seq2SeqModel(VBModel):
         train_op = tf.train.AdamOptimizer(self.config.lr).minimize(loss)
         return train_op
 
-    def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch,
-                         encoder_lengths_batch, decoder_lengths_batch, batch_size):
+    def greedy_batch_decode(self, sess, encoder_inputs_batch, start_token, end_token):
+        decoder_batch = np.full(
+            (encoder_inputs_batch.shape[0], 2 * self.config.max_decoder_timestep + 1), start_token)
+        for i in range(decoder_batch.shape[1]):
+            predictions, _ = self.predict_on_batch(sess, encoder_inputs_batch,
+                                                   decoder_batch, batch_size=encoder_inputs_batch.shape[0])
+            decoder_batch[:, i + 1] = predictions[:, i]
+        return decoder_batch
+
+
+    def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch=None,
+                         encoder_lengths_batch=None, decoder_lengths_batch=None, batch_size=None):
         """Make predictions for the provided batch of data
 
         Args:
@@ -197,7 +190,11 @@ class Seq2SeqModel(VBModel):
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      decoder_lengths_batch=decoder_lengths_batch,
                                      batch_size=batch_size)
-        predictions, loss = sess.run([tf.argmax(self.pred, axis=2), self.loss], feed_dict=feed)
+        if labels_batch is None:
+            predictions = sess.run([tf.argmax(self.pred, axis=2)], feed_dict=feed)
+            loss = 0
+        else:
+            predictions, loss = sess.run([tf.argmax(self.pred, axis=2), self.loss], feed_dict=feed)
         return predictions, loss
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
