@@ -39,7 +39,7 @@ class Config:
         if large:
             self.dropout = 0.2
             self.batch_size = 64
-            self.hidden_size = 128
+            self.hidden_size = 256
             self.n_layers = 2
 
 
