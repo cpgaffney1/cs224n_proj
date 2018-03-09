@@ -98,7 +98,7 @@ def make_fill_blank_data(simple, normal, pad, tok2id, id2tok=None):
     global max_simple_timesteps
     skipped_count = 0
     assert(len(simple) == len(normal))
-    data = []
+    normal_data = []
     for i in range(len(normal)):
         enc = [tok2id[pad]] * max_simple_timesteps
         sentence = normal[i].split(' ')
@@ -115,8 +115,9 @@ def make_fill_blank_data(simple, normal, pad, tok2id, id2tok=None):
 
         assert(enc_len <= max_simple_timesteps)
         assert(len(enc) <= max_simple_timesteps)
-        data.append((enc, tok2id[sentence[-1]], enc_len))
+        normal_data.append((enc, tok2id[sentence[-1]], enc_len))
 
+    simple_data = []
     for i in range(len(simple)):
         enc = [tok2id[pad]] * max_simple_timesteps
         sentence = simple[i].split(' ')
@@ -133,10 +134,10 @@ def make_fill_blank_data(simple, normal, pad, tok2id, id2tok=None):
 
         assert(enc_len <= max_simple_timesteps)
         assert(len(enc) <= max_simple_timesteps)
-        data.append((enc, tok2id[sentence[-1]], enc_len))
+        simple_data.append((enc, tok2id[sentence[-1]], enc_len))
 
     print('skipped {} long sentences'.format(skipped_count))
-    return data
+    return normal_data, simple_data
 
 #returns list of sentences for simple and aligned
 #sentences are a single string

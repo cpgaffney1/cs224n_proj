@@ -80,6 +80,7 @@ class Seq2SeqModel(VBModel):
 
     def add_embedding(self):
         pretrained_embeddings = tf.Variable(self.pretrained_embeddings, dtype=tf.float32)
+        self.variable_summaries(pretrained_embeddings, name='embeddings')
         encoder_embeddings = tf.nn.embedding_lookup(
             pretrained_embeddings, self.encoder_input_placeholder)
         decoder_embeddings = tf.nn.embedding_lookup(
@@ -89,8 +90,8 @@ class Seq2SeqModel(VBModel):
         return encoder_embeddings, decoder_embeddings
 
     def get_lstm_cell(self):
-        lstm = tf.nn.rnn_cell.BasicLSTMCell(self.config.hidden_size)
-        lstm = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0 - self.dropout_placeholder)
+        lstm = tf.nn.rnn_cell.LSTMCell(self.config.hidden_size)
+        #lstm = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0 - self.dropout_placeholder)
         return lstm
 
     def add_encoder(self, encoder_in):
@@ -105,6 +106,14 @@ class Seq2SeqModel(VBModel):
                 forward_cells, backward_cells, encoder_in,
                 dtype=tf.float32
             )
+            for lstm in forward_cells:
+                kernel, bias = lstm.variables
+                self.variable_summaries(kernel, name='lstm_kernel')
+                self.variable_summaries(bias, name='lstm_bias')
+            for lstm in backward_cells:
+                kernel, bias = lstm.variables
+                self.variable_summaries(kernel, name='lstm_kernel')
+                self.variable_summaries(bias, name='lstm_bias')
             encoder_state = fw_state
         else:
             encoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
@@ -131,7 +140,8 @@ class Seq2SeqModel(VBModel):
         return decoder_cell, decoder_initial_state
 
     def add_decoder(self, decoder_in, encoder_outputs, encoder_state):
-        decoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
+        lstm_cells = [self.get_lstm_cell() for _ in range(self.config.n_layers)]
+        decoder_cell = tf.nn.rnn_cell.MultiRNNCell(lstm_cells)
         decoder_cell, decoder_initial_state = self.add_attention(encoder_outputs, encoder_state, decoder_cell)
         outputs, state = tf.nn.dynamic_rnn(
             cell=decoder_cell, inputs=decoder_in,
@@ -139,6 +149,10 @@ class Seq2SeqModel(VBModel):
             initial_state=decoder_initial_state,
             dtype=tf.float32
         )
+        for lstm in lstm_cells:
+            kernel, bias = lstm.variables
+            self.variable_summaries(kernel, name='lstm_kernel')
+            self.variable_summaries(bias, name='lstm_bias')
         logits = tf.layers.dense(outputs, self.config.vocab_size)
         return logits
 
@@ -159,11 +173,10 @@ class Seq2SeqModel(VBModel):
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=self.labels_placeholder, logits=pred)
         loss = tf.reduce_mean(tf.boolean_mask(loss, mask))
-        loss = tf.reduce_mean(loss)
         return loss
 
     def add_training_op(self, loss):
-        train_op = tf.train.AdamOptimizer(self.config.lr).minimize(loss)
+        train_op = tf.train.AdamOptimizer().minimize((loss))
         return train_op
 
     def greedy_batch_decode(self, sess, encoder_inputs_batch, start_token, end_token):
@@ -199,12 +212,13 @@ class Seq2SeqModel(VBModel):
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
                        encoder_lengths_batch, decoder_lengths_batch, labels_batch, batch_size):
+        merge = tf.summary.merge_all()
         feed = self.create_feed_dict(encoder_inputs_batch, decoder_inputs_batch, labels_batch=labels_batch,
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      decoder_lengths_batch=decoder_lengths_batch,
                                      batch_size=batch_size, dropout=self.config.dropout)
-        predictions, _, loss = sess.run([tf.argmax(self.pred, axis=2), self.train_op, self.loss], feed_dict=feed)
-        return predictions, loss
+        predictions, _, loss, summaries = sess.run([tf.argmax(self.pred, axis=2), self.train_op, self.loss, merge], feed_dict=feed)
+        return predictions, loss, summaries
 
     def __init__(self, config, pretrained_embeddings, report=None):
         super(Seq2SeqModel, self).__init__(config, report)

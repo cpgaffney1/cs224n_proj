@@ -45,6 +45,11 @@ def load_one_datafile(filenum):
 
 def train(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
+    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
+                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
+                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
+                    id2tok,
+                    large=args.large)
     if args.resume:
         tf.reset_default_graph()
     else:
@@ -65,11 +70,6 @@ def train(args):
     with tf.Graph().as_default():
         print("Building model...",)
         start = time.time()
-        config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                        parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
-                        embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                        id2tok,
-                        large=args.large)
         model = Seq2SeqModel(config, pretrained_embeddings)
         print("took %.2f seconds", time.time() - start)
 
@@ -144,6 +144,11 @@ def evaluate(args):
 def train_v2(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
     _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
+    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
+                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
+                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
+                    id2tok,
+                    large=args.large)
     if args.resume:
         tf.reset_default_graph()
     else:
@@ -158,40 +163,54 @@ def train_v2(args):
             print('Attention: {}, Bidirectional: {}'.format(args.attention, args.bidirectional))
             print()
             of.write('Beginning train with params:\n')
-            of.write('Attention: {}, Bidirectional: {}\n\n'.format(args.attention, args.bidirectional))
+            of.write('{}\n\n'.format(config))
 
-    data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    data= data[:20]
+    normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
+    dev_size = int(len(normal_data) * 0.1)
+    simple_data = random.sample(simple_data, dev_size)
+    if args.gridsearch:
+        grid_search(args, config, pretrained_embeddings, normal_data, simple_data)
+    else:
+        run_session(args, config, pretrained_embeddings, normal_data, simple_data)
 
-    with tf.Graph().as_default():
-        print("Building model...",)
-        start = time.time()
-        config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                        parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
-                        embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                        id2tok,
-                        large=args.large)
-        model = FillModel(config, pretrained_embeddings)
-        print("took %.2f seconds", time.time() - start)
 
-        init = tf.global_variables_initializer()
-        saver = tf.train.Saver()
-        with tf.Session() as session:
-            if args.resume:
-                print('resuming from previous checkpoint')
-                saver.restore(session, 'models/fill_model.ckpt')
-            else:
-                session.run(init)
-            if args.buildmodel:
-                exit(0)
-            writer = tf.summary.FileWriter("tensorboard_output", session.graph)
-            for epoch in range(config.n_epochs):
+
+def grid_search(args, config, pretrained_embeddings, normal_data, simple_data):
+    for hs in [256]:
+        for nl in [2]:
+            for d in [0.0, 0.2, 0.5, 0.8]:
+                config.hidden_size = hs
+                config.n_layers = nl
+                config.dropout = d
+                run_session(args, config, pretrained_embeddings, normal_data, simple_data)
+
+def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
+    for epoch in range(config.n_epochs):
+        with tf.Graph().as_default():
+            print("Building model...", )
+            start = time.time()
+            model = FillModel(config, pretrained_embeddings)
+            print("took %.2f seconds", time.time() - start)
+            init = tf.global_variables_initializer()
+            saver = tf.train.Saver()
+            with tf.Session() as session:
+                if args.resume:
+                    print('resuming from previous checkpoint')
+                    saver.restore(session, 'models/{}/fill_model.ckpt'.format(model.config))
+                else:
+                    session.run(init)
+                if args.buildmodel:
+                    exit(0)
+                writer = tf.summary.FileWriter("tensorboard_output", session.graph)
                 print()
                 print('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
                 with open('training_output.txt', 'a') as of:
-                    of.write('Epoch {} out of {}\n'.format(epoch + 1, config.n_epochs))
-                train_data, dev_data = split_train_dev(data)
-                model.fit_fill(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
+                    of.write('\nEpoch {} out of {}\n'.format(epoch + 1, config.n_epochs))
+                # train_data, dev_data = split_train_dev(data)
+                train_data = normal_data
+                dev_data = simple_data
+                model.fit_fill(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END],
+                               epoch=epoch)
             writer.close()
 
 
@@ -208,6 +227,7 @@ if __name__ == '__main__':
                                 help="Larger model")
     command_parser.add_argument('-a', '--attention', action='store_true', default=False, help="Use attention")
     command_parser.add_argument('-b', '--bidirectional', action='store_true', default=False, help="Use bidirectional")
+    command_parser.add_argument('-gs', '--gridsearch', action='store_true', default=False, help="Do param grid search")
     command_parser.set_defaults(func=train_v2)
 
     command_parser = subparsers.add_parser('eval', help='evaluate model')
@@ -222,9 +242,12 @@ if __name__ == '__main__':
     command_parser = subparsers.add_parser('load', help='Load and split data into pieces')
     command_parser.set_defaults(func=load_and_split)
 
+
     ARGS = parser.parse_args()
     if ARGS.func is None:
         parser.print_help()
         sys.exit(1)
     else:
         ARGS.func(ARGS)
+
+

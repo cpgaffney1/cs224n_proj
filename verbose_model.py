@@ -148,28 +148,21 @@ class VBModel(Model):
 
     def evaluate_fill(self, sess, examples, pad_tokens, write_preds=True):
         predictions = []
-        print('Dev predictions')
-        print('---------------------')
         for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
-            encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
-                encoder_lengths_batch, decoder_lengths_batch = batch
+            encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
             predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
-                                                            decoder_inputs_batch=decoder_inputs_batch,
+                                                            decoder_inputs_batch=None,
                                                             labels_batch=labels_batch,
                                                             encoder_lengths_batch=encoder_lengths_batch,
-                                                            decoder_lengths_batch=decoder_lengths_batch,
+                                                            decoder_lengths_batch=None,
                                                             batch_size=encoder_lengths_batch.shape[0])
             self.dev_loss_sum += batch_loss
-            predictions = self.index_to_word(predictions)
-            print(self.print_pred(predictions[0]))
-            with open('dev_predict.txt', 'a') as of:
-                for p in predictions:
-                    of.write(self.print_pred(p) + '\n')
-        with open('dev_predict.txt', 'a') as of:
-            of.write('\n')
         return predictions, self.dev_loss_sum / self.total_batches_done
 
     def fit_fill(self, sess, saver, writer, train_examples, dev_set, pad_tokens=None, epoch=0):
+        self.dev_loss_sum = 0
+        self.train_loss_sum = 0
+        self.total_batches_done = 0
         if pad_tokens is None:
             pad_tokens = []
         target = 1 + int(len(train_examples) / self.config.batch_size)
@@ -180,35 +173,33 @@ class VBModel(Model):
             prog.update(i)
             start_batch = time.time()
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
-            print(self.print_pred(self.index_to_word(encoder_inputs_batch)[0]))
             print(self.config.id2tok[labels_batch[0]])
-            predictions, loss, summaries = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            predictions, train_loss, summaries = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                     decoder_inputs_batch=None,
                                                     encoder_lengths_batch=encoder_lengths_batch,
                                                     decoder_lengths_batch=None,
                                                     labels_batch=labels_batch,
                                                     batch_size=encoder_lengths_batch.shape[0])
-            self.train_loss_sum += loss
+            self.train_loss_sum += train_loss
             self.total_batches_done += 1
             predictions = [self.config.id2tok[pred] for pred in predictions]
             print(self.print_pred(self.index_to_word(encoder_inputs_batch)[0]) + ' + ' + predictions[0])
-            print('Loss = {}'.format(self.train_loss_sum / self.total_batches_done))
+            print('Loss = {}'.format(train_loss))
             print('--------------------------')
             print()
-            print('Batch took {} sec'.format(time.time() - start_batch))
-            print()
+            #print('Batch took {} sec'.format(time.time() - start_batch))
+            #print()
             with open('training_output.txt', 'a') as of:
-                of.write("Batch: {}, Loss: {}\n".format(i + 1, self.train_loss_sum / self.total_batches_done))
-
-        #_, loss = self.evaluate_fill(sess, dev_set, pad_tokens)
-        #print("Dev set loss: " + str(loss))
-        if epoch % 20 == 0:# and self.dev_loss_sum / self.total_batches_done < self.best_dev_loss:
-            #saver.save(sess, "models/fill_model.ckpt")
-            self.best_dev_loss = self.dev_loss_sum / self.total_batches_done
-        with open('train_loss.txt', 'a') as of:
-            of.write("{}".format(self.train_loss_sum / self.total_batches_done))
-        with open('dev_loss.txt', 'a') as of:
-            of.write("{}".format(self.dev_loss_sum / self.total_batches_done))
-        print('Epoch took {} sec'.format(time.time() - start_epoch))
-        writer.add_summary(summaries, epoch)
+                of.write("Batch: {}, Loss: {}\n".format(i + 1, train_loss))
+            if i % 100 == 0:
+                _, dev_loss = self.evaluate_fill(sess, dev_set, pad_tokens)
+                print("Dev set loss: " + str(dev_loss))
+                with open('dev_loss.txt', 'a') as of:
+                    of.write("{}\n".format(dev_loss))
+                if dev_loss < self.best_dev_loss:
+                    saver.save(sess, "models/{}/fill_model.ckpt".format(self.config))
+                    self.best_dev_loss = dev_loss
+            with open('train_loss.txt', 'a') as of:
+                of.write("{}\n".format(train_loss))
+            writer.add_summary(summaries, i)
 
