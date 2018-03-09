@@ -12,18 +12,20 @@ class Config:
 
     """
     dropout = 0.0
-    hidden_size = 32
-    batch_size = 32
-    n_epochs = 2000
-    lr = 0.1
+    hidden_size = 128
+    attention_size = 64
+    batch_size = 64
+    n_epochs = 1
+    lr = 0.01
     n_layers = 1
     beam_width = 10
     reg_weight = 0.00
     max_gradient_norm = 5.0
+    cache_size = 100
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
                  pad_token, start_token, end_token, attention, bidirectional, id2tok, beamsearch=False,
-                 mode='TRAIN', large=True):
+                 mode='TRAIN', large=True, cache=False):
         self.embed_size = embed_size
         self.vocab_size = vocab_size
         self.max_encoder_timesteps = max_encoder_timesteps
@@ -32,14 +34,20 @@ class Config:
         self.bidirectional = bidirectional
         self.mode = mode
         self.id2tok = id2tok
+        self.use_cache = cache
         if large:
             self.dropout = 0.2
-            self.batch_size = 64
+            self.batch_size = 128
             self.hidden_size = 256
             self.n_layers = 2
 
+    def __str__(self):
+        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}'.format(self.reg_weight,
+                                            self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional, self.attention,self.use_cache)
+
 
 class FillModel(VBModel):
+    cache = None
 
     def add_placeholders(self):
         self.encoder_input_placeholder = tf.placeholder(tf.int32, shape=(None, self.config.max_encoder_timesteps),
@@ -50,6 +58,8 @@ class FillModel(VBModel):
                                                   name='dropout')
         self.encoder_lengths_placeholder = tf.placeholder(tf.int32, shape=(None,),
                                                           name='enc_lengths')
+        self.cache_placeholder = tf.placeholder(tf.float32, shape=(100, self.config.hidden_size),
+                                                          name='cache')
         self.dynamic_batch_size = tf.placeholder(tf.int32, shape=(), name='dynamic_batch_size')
 
     def create_feed_dict(self, encoder_inputs_batch,
@@ -57,7 +67,8 @@ class FillModel(VBModel):
                          batch_size=None, dropout=0.0):
         feed_dict = {
             self.encoder_input_placeholder: encoder_inputs_batch,
-            self.dropout_placeholder: dropout
+            self.dropout_placeholder: dropout,
+            self.cache_placeholder: self.cache
         }
         if labels_batch is not None:
             feed_dict[self.labels_placeholder] = labels_batch
@@ -77,22 +88,51 @@ class FillModel(VBModel):
 
     def get_lstm_cell(self):
         lstm = tf.nn.rnn_cell.LSTMCell(self.config.hidden_size)
-        #lstm = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0 - self.dropout_placeholder)
+        lstm = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0 - self.dropout_placeholder)
         return lstm
 
-    def add_attention(self, encoder_outputs, encoder_state, decoder_cell):
-        if self.config.attention:
-            attention_mechanism = tf.contrib.seq2seq.LuongAttention(
-                self.config.hidden_size, encoder_outputs)
-            decoder_cell = tf.contrib.seq2seq.AttentionWrapper(
-                decoder_cell, attention_mechanism, attention_layer_size=self.config.hidden_size
-            )
-            decoder_initial_state = decoder_cell.zero_state(self.dynamic_batch_size, tf.float32).clone(
-                cell_state=encoder_state
-            )
-        else:
-            decoder_initial_state = encoder_state
-        return decoder_cell, decoder_initial_state
+    # TODO modify this
+    # additive attention
+    def attention(self, inputs):
+        '''w_omega = tf.Variable(tf.random_normal([self.config.hidden_size, self.config.attention_size], stddev=0.1))
+        b_omega = tf.Variable(tf.random_normal([self.config.attention_size], stddev=0.1))
+        u_omega = tf.Variable(tf.random_normal([self.config.attention_size], stddev=0.1))
+        x = tf.tensordot(inputs, w_omega, axes=1)
+        print(x)
+        exit()
+        v = tf.tanh(tf.tensordot(inputs, w_omega, axes=1) + b_omega)
+        vu = tf.tensordot(v, u_omega, axes=1, name='vu')  # (B,T) shape
+        alphas = tf.nn.softmax(vu, name='alphas')  # (B,T) shape
+        output = tf.reduce_sum(inputs * tf.expand_dims(alphas, -1), 1)
+        print(tf.shape(output))
+        return output'''
+        W = tf.get_variable("weights_W", [self.config.hidden_size, self.config.attention_size])
+        v = tf.get_variable("weights_v", [self.config.attention_size])
+
+        # [batch_size x seq_len x dim]  -- tanh(W^{Y}Y)
+        M = tf.tanh(tf.einsum("aij,jk->aik", inputs, W))
+        print(M)
+        # [batch_size x seq_len]        -- softmax(Y v^T)
+        a = tf.nn.softmax(tf.einsum("aij,j->ai", M, v))
+        print(a)
+        # [batch_size x dim]            -- Ya^T
+        r = tf.einsum("aij,ai->aj", inputs, a)
+        print(r)
+        return r
+
+    # TODO modify this
+    def cache_attention(self):
+        self.cache_W = tf.get_variable("cache_weights_W", [self.config.hidden_size, self.config.attention_size])
+        self.cache_v = tf.get_variable("cache_weights_v", [self.config.attention_size])
+
+        M = tf.tanh(tf.matmul(self.cache_placeholder, self.cache_W))
+        print(M)
+        a = tf.nn.softmax(tf.matmul(M, self.cache_v))
+        print(a)
+        weighted_cache = np.sum(self.cache_placeholder * a, axis=0)
+        print(weighted_cache)
+        return weighted_cache
+
 
     def get_encoder(self, encoder_in):
         if self.config.bidirectional:
@@ -124,9 +164,20 @@ class FillModel(VBModel):
         encoder_in = self.add_embedding()
         with tf.variable_scope('prediction'):
             encoder_outputs = self.get_encoder(encoder_in)
-            encoder_outputs = tf.transpose(encoder_outputs, [1, 0, 2])
-            last_output = tf.gather(encoder_outputs, int(encoder_outputs.get_shape()[0]) - 1)
-            logits = tf.layers.dense(last_output, self.config.vocab_size)
+            print(encoder_outputs)
+            if self.config.attention:
+                self.last_output = self.attention(encoder_outputs)
+                print(self.last_output)
+            else:
+                encoder_outputs = tf.transpose(encoder_outputs, [1, 0, 2])
+                self.last_output = tf.gather(encoder_outputs, int(encoder_outputs.get_shape()[0]) - 1)
+                print(self.last_output)
+            state = self.last_output
+            if self.config.use_cache:
+                z = tf.get_variable("final_cache_weights_z", [self.config.hidden_size])
+                weighted_cache = self.cache_attention()
+                state = state + z * weighted_cache
+            logits = tf.layers.dense(state, self.config.vocab_size)
         return logits
 
     def add_loss_op(self, pred):
@@ -138,15 +189,6 @@ class FillModel(VBModel):
     def add_training_op(self, loss):
         train_op = tf.train.AdamOptimizer().minimize((loss))
         return train_op
-
-    def greedy_batch_decode(self, sess, encoder_inputs_batch, start_token, end_token):
-        decoder_batch = np.full(
-            (encoder_inputs_batch.shape[0], 2 * self.config.max_decoder_timestep + 1), start_token)
-        for i in range(decoder_batch.shape[1]):
-            predictions, _ = self.predict_on_batch(sess, encoder_inputs_batch,
-                                                   decoder_batch, batch_size=encoder_inputs_batch.shape[0])
-            decoder_batch[:, i + 1] = predictions[:, i]
-        return decoder_batch
 
 
     def predict_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch, labels_batch=None,
@@ -176,7 +218,50 @@ class FillModel(VBModel):
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      batch_size=batch_size, dropout=self.config.dropout)
         predictions, _, loss, summaries = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge], feed_dict=feed)
+        if self.config.use_cache:
+            predictions, _, loss, summaries, \
+            candidate, W, v = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge,
+                            self.last_output, self.cache_W, self.cache_v], feed_dict=feed)
+            W = np.transpose(W, axes=[1, 0])
+            if self.insert_cache_candidate(candidate, W, v):
+                self.maintain_cache(0, W, v)
+            print(self.cache)
         return predictions, loss, summaries
+
+    def insert_cache_candidate(self, candidate, W, v):
+        candidate_score = np.dot(np.matmul(W, candidate), v)
+        min_score = np.dot(np.matmul(W, self.cache[0]), v)
+        if candidate_score > min_score:
+            self.cache[0] = candidate
+            return True
+        return False
+
+
+    def maintain_cache(self, i, W, v):
+        def parent(j):
+            return int(j / 2)
+
+        def right(j):
+            return j * 2
+
+        def left(j):
+            return j * 2 + 1
+
+        candidate_score = np.dot(np.matmul(W, self.cache[i]), v)
+        right_score = np.dot(np.matmul(W, self.cache[right(i)]), v)
+        left_score = np.dot(np.matmul(W, self.cache[left(i)]), v)
+        if candidate_score > right_score:
+            temp = self.cache[right(i)]
+            self.cache[right(i)] = self.cache[i]
+            self.cache[i] = temp
+            self.maintain_cache(right(i), W, v)
+        elif candidate_score > left_score:
+            temp = self.cache[left(i)]
+            self.cache[left(i)] = self.cache[i]
+            self.cache[i] = temp
+            self.maintain_cache(left(i), W, v)
+
+
 
     def __init__(self, config, pretrained_embeddings, report=None):
         super(FillModel, self).__init__(config, report)
@@ -190,8 +275,11 @@ class FillModel(VBModel):
         self.encoder_lengths_placeholder = None
         self.decoder_lengths_placeholder = None
         self.dynamic_batch_size = None
+        self.cache_placeholder = None
 
         self.build()
+
+        self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
 
     def preprocess_sequence_data(self, examples):
         return examples

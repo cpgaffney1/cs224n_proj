@@ -147,7 +147,7 @@ def train_v2(args):
     config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
                     parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                    id2tok,
+                    id2tok, cache=args.cache,
                     large=args.large)
     if args.resume:
         tf.reset_default_graph()
@@ -228,6 +228,7 @@ if __name__ == '__main__':
     command_parser.add_argument('-a', '--attention', action='store_true', default=False, help="Use attention")
     command_parser.add_argument('-b', '--bidirectional', action='store_true', default=False, help="Use bidirectional")
     command_parser.add_argument('-gs', '--gridsearch', action='store_true', default=False, help="Do param grid search")
+    command_parser.add_argument('-c', '--cache', action='store_true', default=False, help="Use cache")
     command_parser.set_defaults(func=train_v2)
 
     command_parser = subparsers.add_parser('eval', help='evaluate model')
