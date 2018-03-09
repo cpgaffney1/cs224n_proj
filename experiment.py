@@ -1,7 +1,8 @@
-from parser_util import make_seq2seq_data, make_seq2seq_data_v2
+from parser_util import make_seq2seq_data, make_seq2seq_data_v2, make_fill_blank_data
 import parser_util
 import embedding_util as embedder
 from seq2seq_model import Seq2SeqModel, Config
+from fill_model import FillModel, Config
 import tensorflow as tf
 import time, sys, random, os
 import numpy as np
@@ -44,14 +45,6 @@ def load_one_datafile(filenum):
 
 def train(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    # clear training log file
-    with open('training_output.txt', 'w') as of:
-        print('Beginning train with params:')
-        print('Attention: {}, Bidirectional: {}'.format(args.attention, args.bidirectional))
-        print()
-        of.write('Beginning train with params:\n')
-        of.write('Attention: {}, Bidirectional: {}\n\n'.format(args.attention, args.bidirectional))
-
     if args.resume:
         tf.reset_default_graph()
     else:
@@ -61,6 +54,12 @@ def train(args):
             of.write('\n')
         with open('dev_loss.txt', 'w') as of:
             of.write('\n')
+        with open('training_output.txt', 'w') as of:
+            print('Beginning train with params:')
+            print('Attention: {}, Bidirectional: {}'.format(args.attention, args.bidirectional))
+            print()
+            of.write('Beginning train with params:\n')
+            of.write('Attention: {}, Bidirectional: {}\n\n'.format(args.attention, args.bidirectional))
 
 
     with tf.Graph().as_default():
@@ -84,6 +83,7 @@ def train(args):
                 session.run(init)
             if args.buildmodel:
                 exit(0)
+            writer = tf.summary.FileWriter("tensorboard_output", session.graph)
             for epoch in range(config.n_epochs):
                 print()
                 print('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
@@ -97,7 +97,9 @@ def train(args):
                 #    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(400)
                 #]
                 train_data, dev_data = split_train_dev(data)
-                model.fit(session, saver, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
+                model.fit(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
+            writer.close()
+
 
 def evaluate(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
@@ -139,6 +141,61 @@ def evaluate(args):
                     of.write(model.print_pred(pred))
                     of.write('\n')
 
+def train_v2(args):
+    pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
+    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
+    if args.resume:
+        tf.reset_default_graph()
+    else:
+        with open('dev_predict.txt', 'w') as of:
+            of.write('\n')
+        with open('train_loss.txt', 'w') as of:
+            of.write('\n')
+        with open('dev_loss.txt', 'w') as of:
+            of.write('\n')
+        with open('training_output.txt', 'w') as of:
+            print('Beginning train with params:')
+            print('Attention: {}, Bidirectional: {}'.format(args.attention, args.bidirectional))
+            print()
+            of.write('Beginning train with params:\n')
+            of.write('Attention: {}, Bidirectional: {}\n\n'.format(args.attention, args.bidirectional))
+
+    data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
+    data= data[:20]
+
+    with tf.Graph().as_default():
+        print("Building model...",)
+        start = time.time()
+        config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
+                        parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
+                        embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
+                        id2tok,
+                        large=args.large)
+        model = FillModel(config, pretrained_embeddings)
+        print("took %.2f seconds", time.time() - start)
+
+        init = tf.global_variables_initializer()
+        saver = tf.train.Saver()
+        with tf.Session() as session:
+            if args.resume:
+                print('resuming from previous checkpoint')
+                saver.restore(session, 'models/fill_model.ckpt')
+            else:
+                session.run(init)
+            if args.buildmodel:
+                exit(0)
+            writer = tf.summary.FileWriter("tensorboard_output", session.graph)
+            for epoch in range(config.n_epochs):
+                print()
+                print('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
+                with open('training_output.txt', 'a') as of:
+                    of.write('Epoch {} out of {}\n'.format(epoch + 1, config.n_epochs))
+                train_data, dev_data = split_train_dev(data)
+                model.fit_fill(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
+            writer.close()
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Trains and tests the sentence verbosity model.')
     subparsers = parser.add_subparsers()
@@ -151,7 +208,7 @@ if __name__ == '__main__':
                                 help="Larger model")
     command_parser.add_argument('-a', '--attention', action='store_true', default=False, help="Use attention")
     command_parser.add_argument('-b', '--bidirectional', action='store_true', default=False, help="Use bidirectional")
-    command_parser.set_defaults(func=train)
+    command_parser.set_defaults(func=train_v2)
 
     command_parser = subparsers.add_parser('eval', help='evaluate model')
     command_parser.add_argument('-a', '--attention', action='store_true', default=False, help="Use attention")
