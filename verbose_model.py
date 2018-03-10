@@ -198,12 +198,13 @@ class VBModel(Model):
             if i % 100 == 0:
                 _, dev_loss = self.evaluate_fill(sess, dev_set, pad_tokens)
                 print("Dev set loss: " + str(dev_loss))
-                with open('dev_loss.txt', 'a') as of:
+                with open('models/{}/dev_loss.txt'.format(self.config), 'a') as of:
                     of.write("{}\n".format(dev_loss))
                 if dev_loss < self.best_dev_loss:
+                    print('Saving new model')
                     saver.save(sess, "models/{}/fill_model.ckpt".format(self.config))
                     self.best_dev_loss = dev_loss
-            with open('train_loss.txt', 'a') as of:
+            with open('models/{}/train_loss.txt'.format(self.config), 'a') as of:
                 of.write("{}\n".format(train_loss))
             writer.add_summary(summaries, i)
 

@@ -149,21 +149,17 @@ def train_v2(args):
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                     id2tok, cache=args.cache,
                     large=args.large)
-    if args.resume:
-        tf.reset_default_graph()
-    else:
-        with open('dev_predict.txt', 'w') as of:
+    if not args.resume:
+        with open('models/{}/dev_predict.txt'.format(config), 'w') as of:
             of.write('\n')
-        with open('train_loss.txt', 'w') as of:
+        with open('models/{}/train_loss.txt'.format(config), 'w') as of:
             of.write('\n')
-        with open('dev_loss.txt', 'w') as of:
+        with open('models/{}/dev_loss.txt'.format(config), 'w') as of:
             of.write('\n')
-        with open('training_output.txt', 'w') as of:
-            print('Beginning train with params:')
-            print('Attention: {}, Bidirectional: {}'.format(args.attention, args.bidirectional))
-            print()
-            of.write('Beginning train with params:\n')
-            of.write('{}\n\n'.format(config))
+        with open('models/{}/training_output.txt'.format(config), 'w') as of:
+            print('Start: {}\n'.format(time.time()))
+            print('Beginning train with params: {}\n\n'.format(config))
+            of.write('Beginning train with params: {}\n\n'.format(config))
 
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
     dev_size = int(len(normal_data) * 0.1)
@@ -186,6 +182,8 @@ def grid_search(args, config, pretrained_embeddings, normal_data, simple_data):
 
 def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
     for epoch in range(config.n_epochs):
+        if args.resume:
+            tf.reset_default_graph()
         with tf.Graph().as_default():
             print("Building model...", )
             start = time.time()
@@ -194,7 +192,7 @@ def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
             init = tf.global_variables_initializer()
             saver = tf.train.Saver()
             with tf.Session() as session:
-                if args.resume:
+                if args.resume or epoch > 0:
                     print('resuming from previous checkpoint')
                     saver.restore(session, 'models/{}/fill_model.ckpt'.format(model.config))
                 else:

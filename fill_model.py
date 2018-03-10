@@ -15,7 +15,7 @@ class Config:
     hidden_size = 128
     attention_size = 64
     batch_size = 64
-    n_epochs = 1
+    n_epochs = 5
     lr = 0.01
     n_layers = 1
     beam_width = 10
@@ -37,9 +37,9 @@ class Config:
         self.use_cache = cache
         if large:
             self.dropout = 0.2
-            self.batch_size = 128
-            self.hidden_size = 256
-            self.n_layers = 2
+            self.batch_size = 64
+            self.hidden_size = 128
+            self.n_layers = 1
 
     def __str__(self):
         return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}'.format(self.reg_weight,
@@ -127,9 +127,9 @@ class FillModel(VBModel):
 
         M = tf.tanh(tf.matmul(self.cache_placeholder, self.cache_W))
         print(M)
-        a = tf.nn.softmax(tf.matmul(M, self.cache_v))
+        a = tf.nn.softmax(tf.matmul(M, tf.transpose(tf.expand_dims(self.cache_v,0), [1,0])))
         print(a)
-        weighted_cache = np.sum(self.cache_placeholder * a, axis=0)
+        weighted_cache = tf.reduce_sum(self.cache_placeholder * a, axis=0)
         print(weighted_cache)
         return weighted_cache
 
@@ -176,9 +176,14 @@ class FillModel(VBModel):
             if self.config.use_cache:
                 z = tf.get_variable("final_cache_weights_z", [self.config.hidden_size])
                 weighted_cache = self.cache_attention()
+                print(weighted_cache)
+                print(z)
+                print(state)
                 state = state + z * weighted_cache
+                print(state)
             logits = tf.layers.dense(state, self.config.vocab_size)
         return logits
+
 
     def add_loss_op(self, pred):
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -220,17 +225,17 @@ class FillModel(VBModel):
         predictions, _, loss, summaries = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge], feed_dict=feed)
         if self.config.use_cache:
             predictions, _, loss, summaries, \
-            candidate, W, v = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge,
+            candidate_batch, W, v = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge,
                             self.last_output, self.cache_W, self.cache_v], feed_dict=feed)
-            W = np.transpose(W, axes=[1, 0])
-            if self.insert_cache_candidate(candidate, W, v):
-                self.maintain_cache(0, W, v)
-            print(self.cache)
+            for i in range(len(candidate_batch)):
+                candidate = candidate_batch[i]
+                if self.insert_cache_candidate(candidate, W, v):
+                    self.maintain_cache(0, W, v)
         return predictions, loss, summaries
 
     def insert_cache_candidate(self, candidate, W, v):
-        candidate_score = np.dot(np.matmul(W, candidate), v)
-        min_score = np.dot(np.matmul(W, self.cache[0]), v)
+        candidate_score = np.dot(np.matmul(candidate, W), v)
+        min_score = np.dot(np.matmul(self.cache[0], W), v)
         if candidate_score > min_score:
             self.cache[0] = candidate
             return True
@@ -248,8 +253,9 @@ class FillModel(VBModel):
             return j * 2 + 1
 
         candidate_score = np.dot(np.matmul(W, self.cache[i]), v)
-        right_score = np.dot(np.matmul(W, self.cache[right(i)]), v)
-        left_score = np.dot(np.matmul(W, self.cache[left(i)]), v)
+        right_score = np.dot(np.matmul(self.cache[right(i)], W), v)
+        left_score = np.dot(np.matmul(self.cache[left(i)], W), v)
+
         if candidate_score > right_score:
             temp = self.cache[right(i)]
             self.cache[right(i)] = self.cache[i]
