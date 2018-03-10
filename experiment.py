@@ -141,6 +141,54 @@ def evaluate(args):
                     of.write(model.print_pred(pred))
                     of.write('\n')
 
+def evaluate_v2(args):
+    pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
+    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='test')
+    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
+                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
+                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
+                    id2tok, cache=args.cache,
+                    large=args.large)
+    normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
+    test_set = normal_data + simple_data
+
+    tf.reset_default_graph()
+    with tf.Graph().as_default():
+        model = FillModel(config, pretrained_embeddings)
+        saver = tf.train.Saver()
+        with tf.Session() as session:
+            saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
+            predictions, dev_loss = model.evaluate_fill(session, test_set, pad_tokens=[embedder.PAD, embedder.END])
+            with open('models/{}/test_predictions.txt'.format(config), 'w') as of:
+                for i in range(len(predictions)):
+                    input, label, _ = test_set[i]
+                    of.write(input + '\n')
+                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(label, predictions[i]))
+                    of.write('\n')
+
+    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
+    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
+                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
+                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
+                    id2tok, cache=args.cache,
+                    large=args.large)
+    _, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
+    dev_set = simple_data
+    tf.reset_default_graph()
+    with tf.Graph().as_default():
+        model = FillModel(config, pretrained_embeddings)
+        saver = tf.train.Saver()
+        with tf.Session() as session:
+            saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
+            predictions, dev_loss = model.evaluate_fill(session, dev_set, pad_tokens=[embedder.PAD, embedder.END])
+            with open('models/{}/dev_predictions.txt'.format(config), 'w') as of:
+                for i in range(len(predictions)):
+                    input, label, _ = test_set[i]
+                    of.write(input + '\n')
+                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(label, predictions[i]))
+                    of.write('\n')
+
+
 def train_v2(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
     _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
@@ -150,6 +198,7 @@ def train_v2(args):
                     id2tok, cache=args.cache,
                     large=args.large)
     if not args.resume:
+        os.mkdir('models/{}'.format(config))
         with open('models/{}/dev_predict.txt'.format(config), 'w') as of:
             of.write('\n')
         with open('models/{}/train_loss.txt'.format(config), 'w') as of:
@@ -168,7 +217,6 @@ def train_v2(args):
         grid_search(args, config, pretrained_embeddings, normal_data, simple_data)
     else:
         run_session(args, config, pretrained_embeddings, normal_data, simple_data)
-
 
 
 def grid_search(args, config, pretrained_embeddings, normal_data, simple_data):
