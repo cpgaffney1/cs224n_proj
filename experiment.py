@@ -263,7 +263,6 @@ def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
                 model.fit_fill(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END],
                                epoch=epoch)
             writer.close()
-            exit()
 
 
 

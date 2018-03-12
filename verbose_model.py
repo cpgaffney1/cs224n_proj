@@ -175,7 +175,7 @@ class VBModel(Model):
         start_epoch = time.time()
         for i, batch in enumerate(minibatches(train_examples, self.config.batch_size)):
             if i > 1505:
-                exit()
+                break
             prog.update(i)
             start_batch = time.time()
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
