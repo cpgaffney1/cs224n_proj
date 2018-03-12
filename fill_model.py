@@ -15,7 +15,7 @@ class Config:
     hidden_size = 128
     attention_size = 64
     batch_size = 64
-    n_epochs = 1
+    n_epochs = 5
     lr = 0.01
     n_layers = 1
     beam_width = 10
