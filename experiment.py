@@ -245,9 +245,9 @@ def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
                                 tf.local_variables_initializer())
                 print('initialized variables')
                 saver = tf.train.Saver()
+                session.run(init)
                 if args.resume or epoch > 0:
                     print('resuming from previous checkpoint')
-                    session.run(init)
                     saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
                 if args.buildmodel:
                     exit(0)
