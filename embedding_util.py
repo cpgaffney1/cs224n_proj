@@ -43,12 +43,11 @@ def get_id_mapping(document):
     return tok2id, id2tok
 
 
-def build_dict(keys, n_max=None):
+def build_dict(keys):
     count = Counter()
     for key in keys:
         count[key] += 1
-    ls = count.most_common() if n_max is None \
-        else count.most_common(n_max)
+    ls = sorted(count.most_common(), key=lambda x: (-x[1], x[0]))
     return {w[0]: index for (index, w) in enumerate(ls)}
 
 def get_embeddings_matrix(n_tokens, large=False):

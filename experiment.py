@@ -203,7 +203,7 @@ def evaluate_v2(args):
 
 def train_v2(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
+    normal, simple = parser_util.parse_pwkp(mode='train')
     config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
                     parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
