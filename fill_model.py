@@ -22,6 +22,7 @@ class Config:
     reg_weight = 0.00
     max_gradient_norm = 5.0
     cache_size = 100
+    uses_regularization = True
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
                  pad_token, start_token, end_token, attention, bidirectional, id2tok, beamsearch=False,
@@ -36,15 +37,15 @@ class Config:
         self.id2tok = id2tok
         self.use_cache = cache
         if large:
-            self.dropout = 0.2
+            self.dropout = 0.6
             self.batch_size = 64
             self.hidden_size = 128
             self.n_layers = 1
 
     def __str__(self):
-        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}'.format(self.reg_weight,
+        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_100'.format(self.reg_weight,
                                             self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
-                                            self.attention,self.use_cache)#, self.embed_size)
+                                            self.attention,self.use_cache, self.embed_size)
 
 
 class FillModel(VBModel):
@@ -97,6 +98,9 @@ class FillModel(VBModel):
     def attention(self, inputs):
         W = tf.get_variable("weights_W", [self.config.hidden_size, self.config.attention_size])
         v = tf.get_variable("weights_v", [self.config.attention_size, 1])
+        #if self.config.uses_regularization:
+        #    W = tf.nn.l2_normalize(W, dim=-1)
+         #   v = tf.nn.l2_normalize(v, dim=-1)
 
         inputs = tf.reshape(inputs, shape=(-1, self.config.hidden_size))
         M = tf.tanh(tf.matmul(inputs, W))
@@ -112,6 +116,9 @@ class FillModel(VBModel):
     def cache_attention(self):
         self.cache_W = tf.get_variable("cache_weights_W", [self.config.hidden_size, self.config.attention_size])
         self.cache_v = tf.get_variable("cache_weights_v", [self.config.attention_size])
+        #if self.config.uses_regularization:
+        #    self.cache_W = tf.nn.l2_normalize(self.cache_W, dim=-1)
+        #    self.cache_v = tf.nn.l2_normalize(self.cache_v, dim=-1)
 
         M = tf.tanh(tf.matmul(self.cache_placeholder, self.cache_W))
         print(M)
@@ -155,7 +162,6 @@ class FillModel(VBModel):
             print(encoder_outputs)
             if self.config.attention:
                 self.last_output = self.attention(encoder_outputs)
-                print(self.last_output)
             else:
                 encoder_outputs = tf.transpose(encoder_outputs, [1, 0, 2])
                 self.last_output = tf.gather(encoder_outputs, int(encoder_outputs.get_shape()[0]) - 1)
@@ -163,14 +169,14 @@ class FillModel(VBModel):
             state = self.last_output
             if self.config.use_cache:
                 z = tf.get_variable("final_cache_weights_z", [self.config.hidden_size])
+            #    z = tf.nn.l2_normalize(z, dim=-1)
                 weighted_cache = self.cache_attention()
-                print(weighted_cache)
-                print(z)
-                print(state)
                 state = state + z * weighted_cache
-                print(state)
-            logits = tf.layers.dense(state, self.config.vocab_size)
-        return logits
+            pred = tf.layers.dense(state, self.config.vocab_size)
+            #if self.config.uses_regularization:
+            #    self.last_output = tf.nn.l2_normalize(self.last_output, dim=-1)
+            #    pred = tf.nn.l2_normalize(pred, dim=-1)
+        return pred
 
 
     def add_loss_op(self, pred):
@@ -212,15 +218,14 @@ class FillModel(VBModel):
                                      batch_size=batch_size, dropout=self.config.dropout)
         predictions, _, loss = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss], feed_dict=feed)
         if self.config.use_cache:
-            predictions, _, loss, \
-            candidate_batch, W, v = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss,
-                            self.last_output, self.cache_W, self.cache_v], feed_dict=feed)
-            print(self.cache)
-            for i in range(len(candidate_batch)):
+            candidate_batch, W, v = sess.run([self.last_output,
+                                              self.cache_W, self.cache_v], feed_dict=feed)
+            self.cache = candidate_batch
+            '''for i in range(len(candidate_batch)):
                 candidate = candidate_batch[i]
                 if self.insert_cache_candidate(candidate, W, v):
                     print('inserted cache')
-                    self.maintain_cache(0, W, v)
+                    self.maintain_cache(0, W, v)'''
         return predictions, loss
 
     def insert_cache_candidate(self, candidate, W, v):

@@ -208,5 +208,4 @@ class VBModel(Model):
                     self.best_dev_loss = dev_loss
             with open('models/{}/train_loss.txt'.format(self.config), 'a') as of:
                 of.write("{}\n".format(train_loss))
-            #writer.add_summary(summaries, i)
 

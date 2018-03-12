@@ -152,19 +152,28 @@ def evaluate_v2(args):
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
     test_set = normal_data + simple_data
 
+    init = tf.group(tf.global_variables_initializer(),
+                    tf.local_variables_initializer())
+
     tf.reset_default_graph()
     with tf.Graph().as_default():
         model = FillModel(config, pretrained_embeddings)
         saver = tf.train.Saver()
         with tf.Session() as session:
+            #session.run(init)
             saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
+            test_set = test_set[:1000]
             predictions, dev_loss = model.evaluate_fill(session, test_set, pad_tokens=[embedder.PAD, embedder.END])
+            print('{}'.format(dev_loss))
+            acc_count = 0
             with open('models/{}/test_predictions.txt'.format(config), 'w') as of:
                 for i in range(len(predictions)):
                     input, label, _ = test_set[i]
-                    of.write(input + '\n')
-                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(label, predictions[i]))
+                    of.write(' '.join([id2tok[tok] for tok in input]) + '\n')
+                    acc_count += int(label == predictions[i])
+                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i]]))
                     of.write('\n')
+            print('Accuracy = {}'.format(acc_count / len(predictions)))
 
     _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
     config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
@@ -180,13 +189,18 @@ def evaluate_v2(args):
         saver = tf.train.Saver()
         with tf.Session() as session:
             saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
+            dev_set = dev_set[:1000]
             predictions, dev_loss = model.evaluate_fill(session, dev_set, pad_tokens=[embedder.PAD, embedder.END])
+            print('{}'.format(dev_loss))
+            acc_count = 0
             with open('models/{}/dev_predictions.txt'.format(config), 'w') as of:
                 for i in range(len(predictions)):
                     input, label, _ = test_set[i]
-                    of.write(input + '\n')
-                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(label, predictions[i]))
+                    of.write(' '.join([id2tok[tok] for tok in input]) + '\n')
+                    acc_count += int(label == predictions[i])
+                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i]]))
                     of.write('\n')
+            print('Accuracy = {}'.format(acc_count / len(predictions)))
 
 
 def train_v2(args):
@@ -232,36 +246,32 @@ def grid_search(args, config, pretrained_embeddings, normal_data, simple_data):
                 run_session(args, config, pretrained_embeddings, normal_data, simple_data)
 
 def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
-    for epoch in range(config.n_epochs):
-        if args.resume or epoch > 0:
-            tf.reset_default_graph()
+        tf.reset_default_graph()
         with tf.Graph().as_default():
             print("Building model...", )
             start = time.time()
             model = FillModel(config, pretrained_embeddings)
+            init = tf.group(tf.global_variables_initializer(),
+                            tf.local_variables_initializer())
+            saver = tf.train.Saver(save_relative_paths=True)
             print("took %.2f seconds", time.time() - start)
             with tf.Session() as session:
-                init = tf.group(tf.global_variables_initializer(),
-                                tf.local_variables_initializer())
                 print('initialized variables')
-                saver = tf.train.Saver()
-                session.run(init)
-                if args.resume or epoch > 0:
+                if args.resume:
                     print('resuming from previous checkpoint')
                     saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
+                else:
+                    session.run(init)
                 if args.buildmodel:
                     exit(0)
-                writer = tf.summary.FileWriter("tensorboard_output", session.graph)
-                print()
-                print('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
-                with open('training_output.txt', 'a') as of:
-                    of.write('\nEpoch {} out of {}\n'.format(epoch + 1, config.n_epochs))
+                #writer = tf.summary.FileWriter("tensorboard_output", session.graph)
                 # train_data, dev_data = split_train_dev(data)
                 train_data = normal_data
                 dev_data = simple_data
-                model.fit_fill(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END],
+                for epoch in range(config.n_epochs):
+                    model.fit_fill(session, saver, None, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END],
                                epoch=epoch)
-            writer.close()
+            #writer.close()
 
 
 
