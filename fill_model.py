@@ -36,6 +36,8 @@ class Config:
         self.mode = mode
         self.id2tok = id2tok
         self.use_cache = cache
+        if not self.use_cache:
+            self.cache_size = 100
         if large:
             self.dropout = 0.6
             self.batch_size = 64
@@ -60,7 +62,7 @@ class FillModel(VBModel):
                                                   name='dropout')
         self.encoder_lengths_placeholder = tf.placeholder(tf.int32, shape=(None,),
                                                           name='enc_lengths')
-        self.cache_placeholder = tf.placeholder(tf.float32, shape=(100, self.config.hidden_size),
+        self.cache_placeholder = tf.placeholder(tf.float32, shape=(self.config.cache_size, self.config.hidden_size),
                                                           name='cache')
         self.dynamic_batch_size = tf.placeholder(tf.int32, shape=(), name='dynamic_batch_size')
 
@@ -93,7 +95,6 @@ class FillModel(VBModel):
         lstm = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0 - self.dropout_placeholder)
         return lstm
 
-    # TODO modify this
     # additive attention
     def attention(self, inputs):
         W = tf.get_variable("weights_W", [self.config.hidden_size, self.config.attention_size])
@@ -139,14 +140,6 @@ class FillModel(VBModel):
                 forward_cells, backward_cells, encoder_in,
                 dtype=tf.float32
             )
-            '''for lstm in forward_cells:
-                kernel, bias = lstm.variables
-                self.variable_summaries(kernel, name='lstm_kernel')
-                self.variable_summaries(bias, name='lstm_bias')
-            for lstm in backward_cells:
-                kernel, bias = lstm.variables
-                self.variable_summaries(kernel, name='lstm_kernel')
-                self.variable_summaries(bias, name='lstm_bias')'''
         else:
             encoder_cell = tf.nn.rnn_cell.MultiRNNCell([self.get_lstm_cell() for _ in range(self.config.n_layers)])
             encoder_outputs, _ = tf.nn.dynamic_rnn(
@@ -186,7 +179,7 @@ class FillModel(VBModel):
         return loss
 
     def add_training_op(self, loss):
-        train_op = tf.train.AdamOptimizer().minimize((loss))
+        train_op = tf.train.AdamOptimizer().minimize(loss)
         return train_op
 
 

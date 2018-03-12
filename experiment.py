@@ -1,7 +1,7 @@
 from parser_util import make_seq2seq_data, make_seq2seq_data_v2, make_fill_blank_data
 import parser_util
 import embedding_util as embedder
-from seq2seq_model import Seq2SeqModel, Config
+from seq2seq_model import Seq2SeqModel
 from fill_model import FillModel, Config
 import tensorflow as tf
 import time, sys, random, os
@@ -83,7 +83,6 @@ def train(args):
                 session.run(init)
             if args.buildmodel:
                 exit(0)
-            writer = tf.summary.FileWriter("tensorboard_output", session.graph)
             for epoch in range(config.n_epochs):
                 print()
                 print('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
@@ -98,7 +97,6 @@ def train(args):
                 #]
                 train_data, dev_data = split_train_dev(data)
                 model.fit(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
-            writer.close()
 
 
 def evaluate(args):
@@ -228,6 +226,10 @@ def train_v2(args):
             of.write('Beginning train with params: {}\n\n'.format(config))
 
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
+    print(normal_data[0])
+    print(normal_data[-1])
+    print(simple_data[0])
+    print(simple_data[-1])
     dev_size = int(len(normal_data) * 0.1)
     simple_data = random.sample(simple_data, dev_size)
     if args.gridsearch:

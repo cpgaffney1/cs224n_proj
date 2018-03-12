@@ -81,7 +81,7 @@ class VBModel(Model):
         predictions = []
         print('Dev predictions')
         print('---------------------')
-        for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
+        for i, batch in enumerate(minibatches(examples, self.config.batch_size, shuffle=False)):
             encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
                 encoder_lengths_batch, decoder_lengths_batch = batch
             predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
@@ -107,7 +107,7 @@ class VBModel(Model):
         prog = Progbar(target=target)
         print('iterating over batches')
         start_epoch = time.time()
-        for i, batch in enumerate(minibatches(train_examples, self.config.batch_size)):
+        for i, batch in enumerate(minibatches(train_examples, self.config.batch_size, shuffle=True)):
             prog.update(i)
             start_batch = time.time()
             encoder_inputs_batch, decoder_inputs_batch, labels_batch, \
@@ -150,7 +150,7 @@ class VBModel(Model):
         predictions = []
         loss = 0.0
         count = 0
-        for i, batch in enumerate(minibatches(examples, self.config.batch_size)):
+        for i, batch in enumerate(minibatches(examples, self.config.batch_size, shuffle=False)):
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
             predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                             decoder_inputs_batch=None,
@@ -173,7 +173,7 @@ class VBModel(Model):
         prog = Progbar(target=target)
         print('iterating over batches')
         start_epoch = time.time()
-        for i, batch in enumerate(minibatches(train_examples, self.config.batch_size)):
+        for i, batch in enumerate(minibatches(train_examples, self.config.batch_size, shuffle=True)):
             if i > 1505:
                 break
             prog.update(i)
