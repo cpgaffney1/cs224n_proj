@@ -93,10 +93,10 @@ class VBModel(Model):
             self.dev_loss_sum += batch_loss
             predictions = self.index_to_word(predictions)
             print(self.print_pred(predictions[0]))
-            with open('dev_predict.txt', 'a') as of:
+            with open('models/{}/dev_predict.txt'.format(self.config), 'a') as of:
                 for p in predictions:
                     of.write(self.print_pred(p) + '\n')
-        with open('dev_predict.txt', 'a') as of:
+        with open('models/{}/dev_predict.txt'.format(self.config), 'a') as of:
             of.write('\n')
         return predictions, self.dev_loss_sum / self.total_batches_done
 
@@ -115,7 +115,7 @@ class VBModel(Model):
             #print(self.print_pred(self.index_to_word(encoder_inputs_batch)[0]))
             #print(self.print_pred(self.index_to_word(decoder_inputs_batch)[0]))
             #print(self.print_pred(self.index_to_word(labels_batch)[0]))
-            predictions, loss, summaries = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            predictions, loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                     decoder_inputs_batch=decoder_inputs_batch,
                                                     encoder_lengths_batch=encoder_lengths_batch,
                                                     decoder_lengths_batch=decoder_lengths_batch,
@@ -143,7 +143,7 @@ class VBModel(Model):
         with open('dev_loss.txt', 'a') as of:
             of.write("{}".format(self.dev_loss_sum / self.total_batches_done))
         print('Epoch took {} sec'.format(time.time() - start_epoch))
-        writer.add_summary(summaries, epoch)
+        #writer.add_summary(summaries, epoch)
 
 
     def evaluate_fill(self, sess, examples, pad_tokens, write_preds=True):
@@ -174,11 +174,13 @@ class VBModel(Model):
         print('iterating over batches')
         start_epoch = time.time()
         for i, batch in enumerate(minibatches(train_examples, self.config.batch_size)):
+            if i > 1505:
+                exit()
             prog.update(i)
             start_batch = time.time()
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
             print('\n' + self.config.id2tok[labels_batch[0]])
-            predictions, train_loss, summaries = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            predictions, train_loss = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                     decoder_inputs_batch=None,
                                                     encoder_lengths_batch=encoder_lengths_batch,
                                                     decoder_lengths_batch=None,
@@ -206,5 +208,5 @@ class VBModel(Model):
                     self.best_dev_loss = dev_loss
             with open('models/{}/train_loss.txt'.format(self.config), 'a') as of:
                 of.write("{}\n".format(train_loss))
-            writer.add_summary(summaries, i)
+            #writer.add_summary(summaries, i)
 

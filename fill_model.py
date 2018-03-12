@@ -15,7 +15,7 @@ class Config:
     hidden_size = 128
     attention_size = 64
     batch_size = 64
-    n_epochs = 5
+    n_epochs = 1
     lr = 0.01
     n_layers = 1
     beam_width = 10
@@ -42,8 +42,9 @@ class Config:
             self.n_layers = 1
 
     def __str__(self):
-        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}'.format(self.reg_weight,
-                                            self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional, self.attention,self.use_cache)
+        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(self.reg_weight,
+                                            self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
+                                            self.attention,self.use_cache, self.embed_size)
 
 
 class FillModel(VBModel):
@@ -80,7 +81,7 @@ class FillModel(VBModel):
 
     def add_embedding(self):
         pretrained_embeddings = tf.Variable(self.pretrained_embeddings, dtype=tf.float32)
-        self.variable_summaries(pretrained_embeddings, name='embeddings')
+        #self.variable_summaries(pretrained_embeddings, name='embeddings')
         encoder_embeddings = tf.nn.embedding_lookup(
             pretrained_embeddings, self.encoder_input_placeholder)
         encoder_embeddings = tf.cast(encoder_embeddings, tf.float32)
@@ -94,31 +95,18 @@ class FillModel(VBModel):
     # TODO modify this
     # additive attention
     def attention(self, inputs):
-        '''w_omega = tf.Variable(tf.random_normal([self.config.hidden_size, self.config.attention_size], stddev=0.1))
-        b_omega = tf.Variable(tf.random_normal([self.config.attention_size], stddev=0.1))
-        u_omega = tf.Variable(tf.random_normal([self.config.attention_size], stddev=0.1))
-        x = tf.tensordot(inputs, w_omega, axes=1)
-        print(x)
-        exit()
-        v = tf.tanh(tf.tensordot(inputs, w_omega, axes=1) + b_omega)
-        vu = tf.tensordot(v, u_omega, axes=1, name='vu')  # (B,T) shape
-        alphas = tf.nn.softmax(vu, name='alphas')  # (B,T) shape
-        output = tf.reduce_sum(inputs * tf.expand_dims(alphas, -1), 1)
-        print(tf.shape(output))
-        return output'''
         W = tf.get_variable("weights_W", [self.config.hidden_size, self.config.attention_size])
-        v = tf.get_variable("weights_v", [self.config.attention_size])
+        v = tf.get_variable("weights_v", [self.config.attention_size, 1])
 
-        # [batch_size x seq_len x dim]  -- tanh(W^{Y}Y)
-        M = tf.tanh(tf.einsum("aij,jk->aik", inputs, W))
-        print(M)
-        # [batch_size x seq_len]        -- softmax(Y v^T)
-        a = tf.nn.softmax(tf.einsum("aij,j->ai", M, v))
+        inputs = tf.reshape(inputs, shape=(-1, self.config.hidden_size))
+        M = tf.tanh(tf.matmul(inputs, W))
+        a = tf.nn.softmax(tf.matmul(M, v), dim=-1)
         print(a)
-        # [batch_size x dim]            -- Ya^T
-        r = tf.einsum("aij,ai->aj", inputs, a)
-        print(r)
-        return r
+        a = tf.reshape(a, shape=(self.dynamic_batch_size, self.config.max_encoder_timesteps))
+        a = tf.tile(tf.expand_dims(a, dim=-1), multiples=(1, 1, self.config.hidden_size))
+        inputs = tf.reshape(inputs, shape=(self.dynamic_batch_size, self.config.max_encoder_timesteps, self.config.hidden_size))
+        weighted_input = tf.reduce_sum(inputs * a, axis=1)
+        return weighted_input
 
     # TODO modify this
     def cache_attention(self):
@@ -218,20 +206,22 @@ class FillModel(VBModel):
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
                        encoder_lengths_batch, decoder_lengths_batch, labels_batch, batch_size):
-        merge = tf.summary.merge_all()
+        #merge = tf.summary.merge_all()
         feed = self.create_feed_dict(encoder_inputs_batch, labels_batch=labels_batch,
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      batch_size=batch_size, dropout=self.config.dropout)
-        predictions, _, loss, summaries = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge], feed_dict=feed)
+        predictions, _, loss = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss], feed_dict=feed)
         if self.config.use_cache:
-            predictions, _, loss, summaries, \
-            candidate_batch, W, v = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss, merge,
+            predictions, _, loss, \
+            candidate_batch, W, v = sess.run([tf.argmax(self.pred, axis=1), self.train_op, self.loss,
                             self.last_output, self.cache_W, self.cache_v], feed_dict=feed)
+            print(self.cache)
             for i in range(len(candidate_batch)):
                 candidate = candidate_batch[i]
                 if self.insert_cache_candidate(candidate, W, v):
+                    print('inserted cache')
                     self.maintain_cache(0, W, v)
-        return predictions, loss, summaries
+        return predictions, loss
 
     def insert_cache_candidate(self, candidate, W, v):
         candidate_score = np.dot(np.matmul(candidate, W), v)
@@ -252,18 +242,23 @@ class FillModel(VBModel):
         def left(j):
             return j * 2 + 1
 
-        candidate_score = np.dot(np.matmul(W, self.cache[i]), v)
-        right_score = np.dot(np.matmul(self.cache[right(i)], W), v)
-        left_score = np.dot(np.matmul(self.cache[left(i)], W), v)
+        if i + 1 >= len(self.cache):
+            return
 
-        if candidate_score > right_score:
-            temp = self.cache[right(i)]
-            self.cache[right(i)] = self.cache[i]
+        candidate_score = np.dot(np.matmul(self.cache[i], W), v)
+        if right(i) < len(self.cache):
+            right_score = np.dot(np.matmul(self.cache[right(i)], W), v)
+        if left(i) < len(self.cache):
+            left_score = np.dot(np.matmul(self.cache[left(i)], W), v)
+
+        if right(i) < len(self.cache) and candidate_score > right_score:
+            temp = self.cache[right(i)].copy()
+            self.cache[right(i)] = self.cache[i].copy()
             self.cache[i] = temp
             self.maintain_cache(right(i), W, v)
-        elif candidate_score > left_score:
-            temp = self.cache[left(i)]
-            self.cache[left(i)] = self.cache[i]
+        elif left(i) < len(self.cache) and candidate_score > left_score:
+            temp = self.cache[left(i)].copy()
+            self.cache[left(i)] = self.cache[i].copy()
             self.cache[i] = temp
             self.maintain_cache(left(i), W, v)
 

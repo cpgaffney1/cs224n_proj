@@ -198,7 +198,10 @@ def train_v2(args):
                     id2tok, cache=args.cache,
                     large=args.large)
     if not args.resume:
-        os.mkdir('models/{}'.format(config))
+        try:
+            os.mkdir('models/{}'.format(config))
+        except:
+            pass
         with open('models/{}/dev_predict.txt'.format(config), 'w') as of:
             of.write('\n')
         with open('models/{}/train_loss.txt'.format(config), 'w') as of:
@@ -230,7 +233,7 @@ def grid_search(args, config, pretrained_embeddings, normal_data, simple_data):
 
 def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
     for epoch in range(config.n_epochs):
-        if args.resume:
+        if args.resume or epoch > 0:
             tf.reset_default_graph()
         with tf.Graph().as_default():
             print("Building model...", )
@@ -238,7 +241,9 @@ def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
             model = FillModel(config, pretrained_embeddings)
             print("took %.2f seconds", time.time() - start)
             init = tf.global_variables_initializer()
+            print('initialized variables')
             saver = tf.train.Saver()
+            print()
             with tf.Session() as session:
                 if args.resume or epoch > 0:
                     print('resuming from previous checkpoint')
@@ -258,6 +263,7 @@ def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
                 model.fit_fill(session, saver, writer, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END],
                                epoch=epoch)
             writer.close()
+            exit()
 
 
 
@@ -284,7 +290,8 @@ if __name__ == '__main__':
     command_parser.add_argument('-b', '--bidirectional', action='store_true', default=False, help="Use bidirectional")
     command_parser.add_argument('-bs', '--beamsearch', action='store_true', default=False,
                                 help="Use beam search decoding")
-    command_parser.set_defaults(func=evaluate)
+    command_parser.add_argument('-c', '--cache', action='store_true', default=False, help="Use cache")
+    command_parser.set_defaults(func=evaluate_v2)
 
     command_parser = subparsers.add_parser('load', help='Load and split data into pieces')
     command_parser.set_defaults(func=load_and_split)
