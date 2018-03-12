@@ -240,16 +240,15 @@ def run_session(args, config, pretrained_embeddings, normal_data, simple_data):
             start = time.time()
             model = FillModel(config, pretrained_embeddings)
             print("took %.2f seconds", time.time() - start)
-            init = tf.global_variables_initializer()
-            print('initialized variables')
-            saver = tf.train.Saver()
-            print()
             with tf.Session() as session:
+                init = tf.group(tf.global_variables_initializer(),
+                                tf.local_variables_initializer())
+                print('initialized variables')
+                saver = tf.train.Saver()
                 if args.resume or epoch > 0:
                     print('resuming from previous checkpoint')
-                    saver.restore(session, 'models/{}/fill_model.ckpt'.format(model.config))
-                else:
                     session.run(init)
+                    saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
                 if args.buildmodel:
                     exit(0)
                 writer = tf.summary.FileWriter("tensorboard_output", session.graph)

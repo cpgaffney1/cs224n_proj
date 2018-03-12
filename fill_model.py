@@ -15,7 +15,7 @@ class Config:
     hidden_size = 128
     attention_size = 64
     batch_size = 64
-    n_epochs = 5
+    n_epochs = 1
     lr = 0.01
     n_layers = 1
     beam_width = 10
@@ -42,9 +42,9 @@ class Config:
             self.n_layers = 1
 
     def __str__(self):
-        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(self.reg_weight,
+        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}'.format(self.reg_weight,
                                             self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
-                                            self.attention,self.use_cache, self.embed_size)
+                                            self.attention,self.use_cache)#, self.embed_size)
 
 
 class FillModel(VBModel):
