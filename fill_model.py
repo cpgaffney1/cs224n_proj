@@ -21,8 +21,8 @@ class Config:
     beam_width = 10
     reg_weight = 0.00
     max_gradient_norm = 5.0
-    cache_size = 100
-    uses_regularization = True
+    cache_size = 64
+    uses_regularization = False
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
                  pad_token, start_token, end_token, attention, bidirectional, id2tok, beamsearch=False,
@@ -43,9 +43,11 @@ class Config:
             self.batch_size = 64
             self.hidden_size = 128
             self.n_layers = 1
+        if self.use_cache:
+            self.uses_regularization = False
 
     def __str__(self):
-        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_100'.format(self.reg_weight,
+        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(self.reg_weight,
                                             self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
                                             self.attention,self.use_cache, self.embed_size)
 
@@ -99,9 +101,6 @@ class FillModel(VBModel):
     def attention(self, inputs):
         W = tf.get_variable("weights_W", [self.config.hidden_size, self.config.attention_size])
         v = tf.get_variable("weights_v", [self.config.attention_size, 1])
-        #if self.config.uses_regularization:
-        #    W = tf.nn.l2_normalize(W, dim=-1)
-         #   v = tf.nn.l2_normalize(v, dim=-1)
 
         inputs = tf.reshape(inputs, shape=(-1, self.config.hidden_size))
         M = tf.tanh(tf.matmul(inputs, W))
@@ -117,9 +116,6 @@ class FillModel(VBModel):
     def cache_attention(self):
         self.cache_W = tf.get_variable("cache_weights_W", [self.config.hidden_size, self.config.attention_size])
         self.cache_v = tf.get_variable("cache_weights_v", [self.config.attention_size])
-        #if self.config.uses_regularization:
-        #    self.cache_W = tf.nn.l2_normalize(self.cache_W, dim=-1)
-        #    self.cache_v = tf.nn.l2_normalize(self.cache_v, dim=-1)
 
         M = tf.tanh(tf.matmul(self.cache_placeholder, self.cache_W))
         print(M)
@@ -162,13 +158,12 @@ class FillModel(VBModel):
             state = self.last_output
             if self.config.use_cache:
                 z = tf.get_variable("final_cache_weights_z", [self.config.hidden_size])
-            #    z = tf.nn.l2_normalize(z, dim=-1)
                 weighted_cache = self.cache_attention()
                 state = state + z * weighted_cache
             pred = tf.layers.dense(state, self.config.vocab_size)
-            #if self.config.uses_regularization:
-            #    self.last_output = tf.nn.l2_normalize(self.last_output, dim=-1)
-            #    pred = tf.nn.l2_normalize(pred, dim=-1)
+            if self.config.uses_regularization:
+                self.last_output = tf.nn.l2_normalize(self.last_output, dim=-1)
+                pred = tf.nn.l2_normalize(pred, dim=-1)
         return pred
 
 
