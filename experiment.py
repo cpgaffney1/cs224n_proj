@@ -146,7 +146,7 @@ def evaluate_v2(args):
                     parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                     id2tok, cache=args.cache,
-                    large=args.large)
+                    large=args.large, mode='test')
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
     test_set = normal_data + simple_data
 
@@ -160,7 +160,7 @@ def evaluate_v2(args):
         with tf.Session() as session:
             #session.run(init)
             saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
-            test_set = test_set[:1000]
+            test_set = test_set[:5000]
             predictions, dev_loss = model.evaluate_fill(session, test_set, pad_tokens=[embedder.PAD, embedder.END])
             print('{}'.format(dev_loss))
             acc_count = 0
@@ -181,7 +181,7 @@ def evaluate_v2(args):
                     parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                     id2tok, cache=args.cache,
-                    large=args.large)
+                    large=args.large, mode='test')
     _, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
     dev_set = simple_data
     tf.reset_default_graph()
@@ -190,7 +190,7 @@ def evaluate_v2(args):
         saver = tf.train.Saver()
         with tf.Session() as session:
             saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
-            dev_set = dev_set[:1000]
+            dev_set = dev_set[:5000]
             predictions, dev_loss = model.evaluate_fill(session, dev_set, pad_tokens=[embedder.PAD, embedder.END])
             print('{}'.format(dev_loss))
             acc_count = 0
@@ -214,7 +214,7 @@ def train_v2(args):
                     parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                     id2tok, cache=args.cache,
-                    large=args.large)
+                    large=args.large, mode='train')
     if not args.resume:
         try:
             os.mkdir('models/{}'.format(config))

@@ -26,7 +26,7 @@ class Config:
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
                  pad_token, start_token, end_token, attention, bidirectional, id2tok, beamsearch=False,
-                 mode='TRAIN', large=True, cache=False):
+                 mode='train', large=True, cache=False):
         self.embed_size = embed_size
         self.vocab_size = vocab_size
         self.max_encoder_timesteps = max_encoder_timesteps
@@ -42,9 +42,15 @@ class Config:
             self.n_layers = 1
 
     def __str__(self):
-        return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(self.reg_weight,
-                                            self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
-                                            self.attention,self.use_cache,self.embed_size)
+        if self.use_cache:
+            return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_CacheSize_{}_Embed_{}'.format(
+                self.reg_weight, self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
+                self.attention, self.cache_size, self.embed_size)
+        else:
+            return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(
+                self.reg_weight, self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
+                self.attention, self.use_cache, self.embed_size)
+
 
 
 class FillModel(VBModel):
@@ -217,7 +223,7 @@ class FillModel(VBModel):
                 if self.insert_cache_candidate(candidate, W, v):
                     print('inserted cache')
                     self.maintain_cache(0, W, v)
-        return predictions, loss
+        return predictions, loss, self.cache
 
     def insert_cache_candidate(self, candidate, W, v):
         candidate_score = np.dot(np.matmul(candidate, W), v)
@@ -275,8 +281,11 @@ class FillModel(VBModel):
         self.cache_placeholder = None
 
         self.build()
-
-        self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
+        if self.config.mode == 'train':
+            self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
+        else:
+            assert(self.config.mode == 'test')
+            self.cache = np.load('models/{}/saved_cache.npy'.format(config))
 
     def preprocess_sequence_data(self, examples):
         return examples
