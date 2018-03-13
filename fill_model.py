@@ -217,7 +217,6 @@ class FillModel(VBModel):
         if self.config.use_cache:
             candidate_batch, W, v = sess.run([self.last_output,
                                               self.cache_W, self.cache_v], feed_dict=feed)
-            self.cache = candidate_batch
             for i in range(len(candidate_batch)):
                 candidate = candidate_batch[i]
                 if self.insert_cache_candidate(candidate, W, v):
