@@ -152,12 +152,13 @@ class VBModel(Model):
         count = 0
         for i, batch in enumerate(minibatches(examples, self.config.batch_size, shuffle=False)):
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
-            predictions, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            pred, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                             decoder_inputs_batch=None,
                                                             labels_batch=labels_batch,
                                                             encoder_lengths_batch=encoder_lengths_batch,
                                                             decoder_lengths_batch=None,
                                                             batch_size=encoder_lengths_batch.shape[0])
+            predictions.append(pred)
             self.dev_loss_sum += batch_loss
             loss += batch_loss
             count += 1

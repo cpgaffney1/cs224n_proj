@@ -19,10 +19,10 @@ class Config:
     lr = 0.01
     n_layers = 1
     beam_width = 10
-    reg_weight = 0.00
+    reg_weight = 0.05
     max_gradient_norm = 5.0
     cache_size = 64
-    uses_regularization = False
+    uses_regularization = True
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
                  pad_token, start_token, end_token, attention, bidirectional, id2tok, beamsearch=False,
@@ -36,20 +36,15 @@ class Config:
         self.mode = mode
         self.id2tok = id2tok
         self.use_cache = cache
-        if not self.use_cache:
-            self.cache_size = 100
         if large:
-            self.dropout = 0.6
             self.batch_size = 64
             self.hidden_size = 128
             self.n_layers = 1
-        if self.use_cache:
-            self.uses_regularization = False
 
     def __str__(self):
         return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(self.reg_weight,
                                             self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
-                                            self.attention,self.use_cache, self.embed_size)
+                                            self.attention,self.use_cache,self.embed_size)
 
 
 class FillModel(VBModel):
@@ -160,10 +155,16 @@ class FillModel(VBModel):
                 z = tf.get_variable("final_cache_weights_z", [self.config.hidden_size])
                 weighted_cache = self.cache_attention()
                 state = state + z * weighted_cache
-            pred = tf.layers.dense(state, self.config.vocab_size)
+
+            W = tf.get_variable('W_out', shape=(self.config.hidden_size, self.config.vocab_size),
+                                dtype=tf.float32)
+            b = tf.get_variable('b_out', shape=(1, self.config.vocab_size),
+                                dtype=tf.float32)
+            pred = tf.matmul(state, W) + b
+
             if self.config.uses_regularization:
-                self.last_output = tf.nn.l2_normalize(self.last_output, dim=-1)
-                pred = tf.nn.l2_normalize(pred, dim=-1)
+                self.last_output = tf.layers.batch_normalization(self.last_output)
+                pred = tf.layers.batch_normalization(pred)
         return pred
 
 
@@ -171,6 +172,8 @@ class FillModel(VBModel):
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=self.labels_placeholder, logits=pred)
         loss = tf.reduce_mean(loss)
+        for var in tf.trainable_variables():
+            loss += self.config.reg_weight * tf.nn.l2_loss(var)
         return loss
 
     def add_training_op(self, loss):
@@ -209,11 +212,11 @@ class FillModel(VBModel):
             candidate_batch, W, v = sess.run([self.last_output,
                                               self.cache_W, self.cache_v], feed_dict=feed)
             self.cache = candidate_batch
-            '''for i in range(len(candidate_batch)):
+            for i in range(len(candidate_batch)):
                 candidate = candidate_batch[i]
                 if self.insert_cache_candidate(candidate, W, v):
                     print('inserted cache')
-                    self.maintain_cache(0, W, v)'''
+                    self.maintain_cache(0, W, v)
         return predictions, loss
 
     def insert_cache_candidate(self, candidate, W, v):
