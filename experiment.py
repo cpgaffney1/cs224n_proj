@@ -9,6 +9,7 @@ import numpy as np
 from threading import Thread
 import argparse
 import pickle
+from matplotlib import pyplot as plt
 from functional_util import minibatches
 
 
@@ -139,24 +140,35 @@ def evaluate(args):
                     of.write(model.print_pred(pred))
                     of.write('\n')
 
+def plot_svd(X, config):
+    U, s, Vh = np.linalg.svd(X, full_matrices=True)
+    for i in range(len(X)):
+        plt.text(U[i,0], U[i,1], '{}'.format(i))
+    plt.savefig('models/{}/dim_reduction.png'.format(config))
+
+
+
 def eval_model(model, data, config, id2tok, cache=False, mode='test'):
     saver = tf.train.Saver()
     with tf.Session() as session:
         # session.run(init)
         saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
         data = data[:5000]
-        predictions, dev_loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
-        print('{}'.format(dev_loss))
+        predictions, loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
+        print('Loss = {}'.format(loss))
         acc_count = 0.0
         with open('models/{}/{}_predictions.txt'.format(config, mode), 'w') as of:
             count = 0
             for i in range(len(predictions)):
                 for j in range(len(predictions[i])):
                     input, label, _ = data[count]
-                    of.write(' '.join([id2tok[tok] for tok in input]) + '\n')
                     acc_count += int(label == predictions[i][j])
-                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i][j]]))
-                    of.write('\n')
+                    try:
+                        of.write(' '.join([id2tok[tok] for tok in input]) + '\n')
+                        of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i][j]]))
+                        of.write('\n')
+                    except:
+                        print('failed to write character')
                     count += 1
         print('Accuracy = {}'.format(acc_count / count))
 
@@ -177,7 +189,10 @@ def eval_model(model, data, config, id2tok, cache=False, mode='test'):
 
             with open('models/{}/{}_cache_sentences.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache_sentences)):
-                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
+                    try:
+                        of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
+                    except:
+                        print('failed to write character')
 
 
 def evaluate_v2(args):
@@ -195,6 +210,23 @@ def evaluate_v2(args):
     with tf.Graph().as_default():
         model = FillModel(config, pretrained_embeddings)
         eval_model(model, test_set, config, id2tok, cache=args.cache, mode='test')
+
+    pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
+    normal, simple = parser_util.parse_pwkp(mode='train')
+    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
+                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
+                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
+                    id2tok, cache=args.cache,
+                    large=args.large, mode='test')
+
+    normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
+    train_data = normal_data
+    dev_size = 5000
+    dev_data = train_data[:dev_size]
+    tf.reset_default_graph()
+    with tf.Graph().as_default():
+        model = FillModel(config, pretrained_embeddings)
+        eval_model(model, dev_data, config, id2tok, cache=args.cache, mode='dev')
         
 
 def train_v2(args):
@@ -226,7 +258,6 @@ def train_v2(args):
 
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
     train_data = normal_data
-    np.random.shuffle(train_data)
     dev_size = 5000
     train_data = train_data[dev_size:]
     dev_data = train_data[:dev_size]
