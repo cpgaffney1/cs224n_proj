@@ -222,7 +222,7 @@ class FillModel(VBModel):
                 if self.insert_cache_candidate(candidate, W, v):
                     print('inserted cache')
                     self.maintain_cache(0, W, v)
-        return predictions, loss, self.cache
+        return predictions, loss, self.cache, self.cache_sentences
 
     def score_state_vector(self, a, W, v):
         if np.array_equal(a, np.zeros_like(a)):
@@ -286,9 +286,11 @@ class FillModel(VBModel):
         self.build()
         if self.config.mode == 'train':
             self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
+            self.cache_sentences = np.zeros((self.config.cache_size, self.config.max_encoder_timesteps))
         else:
             assert(self.config.mode == 'test')
             self.cache = np.load('models/{}/saved_cache.npy'.format(config))
+            self.cache_sentences = np.load('models/{}/saved_cache_sentences.npy'.format(config))
 
     def preprocess_sequence_data(self, examples):
         return examples
