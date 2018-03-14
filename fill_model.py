@@ -284,11 +284,12 @@ class FillModel(VBModel):
         self.cache_placeholder = None
 
         self.build()
-        if self.config.mode == 'train':
+        if self.config.mode == 'train' or not self.config.use_cache:
             self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
         else:
-            assert(self.config.mode == 'test')
-            self.cache = np.load('models/{}/saved_cache.npy'.format(config))
+            assert(self.config.mode == 'test' or self.config.mode == 'restore')
+            if self.config.use_cache:
+                self.cache = np.load('models/{}/saved_cache.npy'.format(config))
 
     def preprocess_sequence_data(self, examples):
         return examples
