@@ -175,7 +175,7 @@ class VBModel(Model):
         print('iterating over batches')
         start_epoch = time.time()
         for i, batch in enumerate(minibatches(train_examples, self.config.batch_size, shuffle=True)):
-            if i > 3005:
+            if i > 1405:
                 break
             prog.update(i)
             start_batch = time.time()
