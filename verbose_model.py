@@ -211,3 +211,7 @@ class VBModel(Model):
             with open('models/{}/train_loss.txt'.format(self.config), 'a') as of:
                 of.write("{}\n".format(train_loss))
 
+
+
+
+

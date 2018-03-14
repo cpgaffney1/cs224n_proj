@@ -224,9 +224,15 @@ class FillModel(VBModel):
                     self.maintain_cache(0, W, v)
         return predictions, loss, self.cache
 
+    def score_state_vector(self, a, W, v):
+        if np.array_equal(a, np.zeros_like(a)):
+            return float('-inf')
+        else:
+            return np.dot(np.tanh(np.matmul(a, W)), v)
+
     def insert_cache_candidate(self, candidate, W, v):
-        candidate_score = np.dot(np.matmul(candidate, W), v)
-        min_score = np.dot(np.matmul(self.cache[0], W), v)
+        candidate_score = self.score_state_vector(candidate, W, v)
+        min_score = self.score_state_vector(self.cache[0], W, v)
         if candidate_score > min_score:
             self.cache[0] = candidate
             return True
@@ -234,9 +240,6 @@ class FillModel(VBModel):
 
 
     def maintain_cache(self, i, W, v):
-        def parent(j):
-            return int(j / 2)
-
         def right(j):
             return j * 2
 
@@ -246,11 +249,11 @@ class FillModel(VBModel):
         if i + 1 >= len(self.cache):
             return
 
-        candidate_score = np.dot(np.matmul(self.cache[i], W), v)
+        candidate_score = self.score_state_vector(self.cache[i], W, v)
         if right(i) < len(self.cache):
-            right_score = np.dot(np.matmul(self.cache[right(i)], W), v)
+            right_score = self.score_state_vector(self.cache[right(i)], W, v)
         if left(i) < len(self.cache):
-            left_score = np.dot(np.matmul(self.cache[left(i)], W), v)
+            left_score = self.score_state_vector(self.cache[left(i)], W, v)
 
         if right(i) < len(self.cache) and candidate_score > right_score:
             temp = self.cache[right(i)].copy()
@@ -263,7 +266,8 @@ class FillModel(VBModel):
             self.cache[i] = temp
             self.maintain_cache(left(i), W, v)
 
-
+    def clear_cache(self):
+        self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
 
     def __init__(self, config, pretrained_embeddings, report=None):
         super(FillModel, self).__init__(config, report)
