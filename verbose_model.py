@@ -152,7 +152,7 @@ class VBModel(Model):
         count = 0
         for i, batch in enumerate(minibatches(examples, self.config.batch_size, shuffle=False)):
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
-            pred, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            pred, cache_weights, batch_loss = self.predict_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                             decoder_inputs_batch=None,
                                                             labels_batch=labels_batch,
                                                             encoder_lengths_batch=encoder_lengths_batch,
@@ -162,7 +162,7 @@ class VBModel(Model):
             self.dev_loss_sum += batch_loss
             loss += batch_loss
             count += 1
-        return predictions, loss / count
+        return predictions, cache_weights, loss / count
 
     def fit_fill(self, sess, saver, writer, train_examples, dev_set, pad_tokens=None, epoch=0):
         self.dev_loss_sum = 0
@@ -199,7 +199,7 @@ class VBModel(Model):
             with open('training_output.txt', 'a') as of:
                 of.write("Batch: {}, Loss: {}\n".format(i + 1, train_loss))
             if i % 100 == 0:
-                _, dev_loss = self.evaluate_fill(sess, dev_set, pad_tokens)
+                _, _, dev_loss = self.evaluate_fill(sess, dev_set, pad_tokens)
                 print("Dev set loss: " + str(dev_loss))
                 with open('models/{}/dev_loss.txt'.format(self.config), 'a') as of:
                     of.write("{}\n".format(dev_loss))

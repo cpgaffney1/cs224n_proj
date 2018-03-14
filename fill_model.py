@@ -119,11 +119,9 @@ class FillModel(VBModel):
         self.cache_v = tf.get_variable("cache_weights_v", [self.config.attention_size])
 
         M = tf.tanh(tf.matmul(self.cache_placeholder, self.cache_W))
-        print(M)
         a = tf.nn.softmax(tf.matmul(M, tf.transpose(tf.expand_dims(self.cache_v,0), [1,0])))
-        print(a)
+        self.cache_weights = a
         weighted_cache = tf.reduce_sum(self.cache_placeholder * a, axis=0)
-        print(weighted_cache)
         return weighted_cache
 
 
@@ -201,11 +199,11 @@ class FillModel(VBModel):
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      batch_size=batch_size)
         if labels_batch is None:
-            predictions = sess.run([tf.argmax(self.pred, axis=1)], feed_dict=feed)
+            predictions, cache_weights = sess.run([tf.argmax(self.pred, axis=1), self.cache_weights], feed_dict=feed)
             loss = 0
         else:
-            predictions, loss = sess.run([tf.argmax(self.pred, axis=1), self.loss], feed_dict=feed)
-        return predictions, loss
+            predictions, cache_weights, loss = sess.run([tf.argmax(self.pred, axis=1), self.cache_weights, self.loss], feed_dict=feed)
+        return predictions, cache_weights, loss
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
                        encoder_lengths_batch, decoder_lengths_batch, labels_batch, batch_size):
@@ -219,7 +217,8 @@ class FillModel(VBModel):
                                               self.cache_W, self.cache_v], feed_dict=feed)
             for i in range(len(candidate_batch)):
                 candidate = candidate_batch[i]
-                if self.insert_cache_candidate(candidate, W, v):
+                cand_sentence = encoder_inputs_batch[i]
+                if self.insert_cache_candidate(candidate, cand_sentence, W, v):
                     print('inserted cache')
                     self.maintain_cache(0, W, v)
         return predictions, loss, self.cache, self.cache_sentences
@@ -230,11 +229,12 @@ class FillModel(VBModel):
         else:
             return np.dot(np.tanh(np.matmul(a, W)), v)
 
-    def insert_cache_candidate(self, candidate, W, v):
+    def insert_cache_candidate(self, candidate, cand_sentence, W, v):
         candidate_score = self.score_state_vector(candidate, W, v)
         min_score = self.score_state_vector(self.cache[0], W, v)
         if candidate_score > min_score:
             self.cache[0] = candidate
+            self.cache_sentences[0] = cand_sentence
             return True
         return False
 
@@ -257,13 +257,19 @@ class FillModel(VBModel):
 
         if right(i) < len(self.cache) and candidate_score > right_score:
             temp = self.cache[right(i)].copy()
+            temp_sentence = self.cache_sentences[right(i)].copy()
             self.cache[right(i)] = self.cache[i].copy()
+            self.cache_sentences[right(i)] = self.cache_sentences[i].copy()
             self.cache[i] = temp
+            self.cache_sentences[i] = temp_sentence
             self.maintain_cache(right(i), W, v)
         elif left(i) < len(self.cache) and candidate_score > left_score:
             temp = self.cache[left(i)].copy()
+            temp_sentence = self.cache_sentences[left(i)].copy()
             self.cache[left(i)] = self.cache[i].copy()
+            self.cache_sentences[right(i)] = self.cache_sentences[i].copy()
             self.cache[i] = temp
+            self.cache_sentences[i] = temp_sentence
             self.maintain_cache(left(i), W, v)
 
     def clear_cache(self):
