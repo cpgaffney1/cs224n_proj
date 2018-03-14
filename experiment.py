@@ -9,7 +9,9 @@ import numpy as np
 from threading import Thread
 import argparse
 import pickle
-from matplotlib import pyplot as plt
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 from functional_util import minibatches
 
 
@@ -178,19 +180,19 @@ def eval_model(model, data, config, id2tok, cache=False, mode='test'):
                 for i in range(len(cache_weights)):
                     of.write('{}\n'.format(cache_weights[i]))
 
-            with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
-                for i in range(len(model.cache)):
-                    for j in range(len(model.cache[i])):
-                        of.write('{}\t'.format(model.cache[i][j]))
-                    of.write('\n')
-            plot_svd(model.cache, config)
-
             with open('models/{}/{}_cache_sentences.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache_sentences)):
                     try:
                         of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
                     except:
                         print('failed to write character')
+
+            with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
+                for i in range(len(model.cache)):
+                    for j in range(len(model.cache[i])):
+                        of.write('{}\t'.format(model.cache[i][j]))
+                    of.write('\n')
+            plot_svd(model.cache, config)
 
 
 def evaluate_v2(args):

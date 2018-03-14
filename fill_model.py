@@ -21,7 +21,7 @@ class Config:
     beam_width = 10
     reg_weight = 0.00001
     max_gradient_norm = 5.0
-    cache_size = 100
+    cache_size = 1000
     uses_regularization = True
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
@@ -106,7 +106,6 @@ class FillModel(VBModel):
         inputs = tf.reshape(inputs, shape=(-1, self.config.hidden_size))
         M = tf.tanh(tf.matmul(inputs, W))
         a = tf.nn.softmax(tf.matmul(M, v), dim=-1)
-        print(a)
         a = tf.reshape(a, shape=(self.dynamic_batch_size, self.config.max_encoder_timesteps))
         a = tf.tile(tf.expand_dims(a, dim=-1), multiples=(1, 1, self.config.hidden_size))
         inputs = tf.reshape(inputs, shape=(self.dynamic_batch_size, self.config.max_encoder_timesteps, self.config.hidden_size))
@@ -119,8 +118,11 @@ class FillModel(VBModel):
         self.cache_v = tf.get_variable("cache_weights_v", [self.config.attention_size])
 
         M = tf.tanh(tf.matmul(self.cache_placeholder, self.cache_W))
-        a = tf.nn.softmax(tf.matmul(M, tf.transpose(tf.expand_dims(self.cache_v,0), [1,0])))
+        a = tf.matmul(M, tf.transpose(tf.expand_dims(self.cache_v,0), [1,0]))
+        a = tf.reshape(a, shape=(tf.shape(a)[0],))
+        a = tf.nn.softmax(a)
         self.cache_weights = a
+        a = tf.expand_dims(a, dim=1)
         weighted_cache = tf.reduce_sum(self.cache_placeholder * a, axis=0)
         return weighted_cache
 
