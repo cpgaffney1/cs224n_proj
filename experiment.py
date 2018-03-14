@@ -183,6 +183,7 @@ def eval_model(model, data, config, id2tok, cache=False, mode='test'):
                     for j in range(len(model.cache[i])):
                         of.write('{}\t'.format(model.cache[i][j]))
                     of.write('\n')
+            plot_svd(model.cache, config)
 
             with open('models/{}/{}_cache_sentences.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache_sentences)):

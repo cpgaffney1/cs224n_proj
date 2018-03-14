@@ -198,11 +198,23 @@ class FillModel(VBModel):
         feed = self.create_feed_dict(encoder_inputs_batch, labels_batch=labels_batch,
                                      encoder_lengths_batch=encoder_lengths_batch,
                                      batch_size=batch_size)
+        cache_weights = None
         if labels_batch is None:
-            predictions, cache_weights = sess.run([tf.argmax(self.pred, axis=1), self.cache_weights], feed_dict=feed)
+            if self.config.use_cache:
+                predictions, cache_weights = sess.run([tf.argmax(self.pred, axis=1), self.cache_weights], feed_dict=feed)
+            else:
+                predictions = sess.run([tf.argmax(self.pred, axis=1)], feed_dict=feed)
+
             loss = 0
         else:
-            predictions, cache_weights, loss = sess.run([tf.argmax(self.pred, axis=1), self.cache_weights, self.loss], feed_dict=feed)
+            if self.config.use_cache:
+                predictions, cache_weights, loss = sess.run(
+                    [tf.argmax(self.pred, axis=1), self.cache_weights, self.loss], feed_dict=feed)
+
+            else:
+                predictions, loss = sess.run(
+                    [tf.argmax(self.pred, axis=1), self.loss], feed_dict=feed)
+
         return predictions, cache_weights, loss
 
     def train_on_batch(self, sess, encoder_inputs_batch, decoder_inputs_batch,
