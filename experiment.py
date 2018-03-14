@@ -154,7 +154,7 @@ def eval_model(model, data, config, id2tok, cache=False, mode='test'):
         # session.run(init)
         saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
         data = data[:5000]
-        predictions, loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
+        predictions, cache_weights, loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
         print('Loss = {}'.format(loss))
         acc_count = 0.0
         with open('models/{}/{}_predictions.txt'.format(config, mode), 'w') as of:
@@ -174,12 +174,9 @@ def eval_model(model, data, config, id2tok, cache=False, mode='test'):
 
         if cache:
             ## visualize cache attention
-            W, v = session.run([model.cache_W, model.cache_v])
             with open('models/{}/{}_cache_attention.txt'.format(config, mode), 'w') as of:
-                for i in range(len(data)):
-                    input, label, _ = data[i]
-                    cache_score = np.dot(v, np.tanh(np.matmul(input, W)))
-                    of.write('{}\n'.format(cache_score))
+                for i in range(len(cache_weights)):
+                    of.write('{}\n'.format(cache_weights[i]))
 
             with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache)):
