@@ -139,7 +139,7 @@ def evaluate(args):
                     of.write(model.print_pred(pred))
                     of.write('\n')
 
-def eval_model(model, data, config, id2tok, cache=False):
+def eval_model(model, data, config, id2tok, cache=False, mode='test'):
     saver = tf.train.Saver()
     with tf.Session() as session:
         # session.run(init)
@@ -148,7 +148,7 @@ def eval_model(model, data, config, id2tok, cache=False):
         predictions, dev_loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
         print('{}'.format(dev_loss))
         acc_count = 0.0
-        with open('models/{}/test_predictions.txt'.format(config), 'w') as of:
+        with open('models/{}/{}_predictions.txt'.format(config, mode), 'w') as of:
             count = 0
             for i in range(len(predictions)):
                 for j in range(len(predictions[i])):
@@ -160,24 +160,24 @@ def eval_model(model, data, config, id2tok, cache=False):
                     count += 1
         print('Accuracy = {}'.format(acc_count / count))
 
-        '''if cache:
+        if cache:
             ## visualize cache attention
             W, v = session.run([model.cache_W, model.cache_v])
-            with open('models/{}/cache_attention.txt'.format(config), 'w') as of:
+            with open('models/{}/{}_cache_attention.txt'.format(config, mode), 'w') as of:
                 for i in range(len(data)):
                     input, label, _ = data[i]
                     cache_score = np.dot(v, np.tanh(np.matmul(input, W)))
                     of.write('{}\n'.format(cache_score))
 
-            with open('models/{}/cache_vectors.txt'.format(config), 'w') as of:
+            with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache)):
                     for j in range(len(model.cache[i])):
                         of.write('{}\t'.format(model.cache[i][j]))
                     of.write('\n')
 
-            with open('models/{}/cache_sentences.txt'.format(config), 'w') as of:
+            with open('models/{}/{}_cache_sentences.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache_sentences)):
-                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')'''
+                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
 
 
 def evaluate_v2(args):
@@ -189,26 +189,13 @@ def evaluate_v2(args):
                     id2tok, cache=args.cache,
                     large=args.large, mode='test')
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    test_set = normal_data + simple_data
+    test_set = normal_data
 
     tf.reset_default_graph()
     with tf.Graph().as_default():
         model = FillModel(config, pretrained_embeddings)
-        eval_model(model, test_set, config, id2tok, cache=args.cache)
-
-    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
-    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
-                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                    id2tok, cache=args.cache,
-                    large=args.large, mode='test')
-    _, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    dev_set = simple_data
-    tf.reset_default_graph()
-    with tf.Graph().as_default():
-        model = FillModel(config, pretrained_embeddings)
-        eval_model(model, dev_set, config, id2tok, cache=args.cache)
-
+        eval_model(model, test_set, config, id2tok, cache=args.cache, mode='test')
+        
 
 def train_v2(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
@@ -238,7 +225,7 @@ def train_v2(args):
             of.write('Beginning train with params: {}\n\n'.format(config))
 
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    train_data = normal_data + simple_data
+    train_data = normal_data
     np.random.shuffle(train_data)
     dev_size = 5000
     train_data = train_data[dev_size:]

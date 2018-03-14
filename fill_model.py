@@ -47,9 +47,9 @@ class Config:
                 self.reg_weight, self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
                 self.attention, self.cache_size, self.embed_size)
         else:
-            return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}'.format(
+            return 'RegularizationWeight_{}_HiddenSize_{}_Dropout_{}_NLayers_{}_Lr_{}_Bidirectional_{}_Attention_{}_Cache_{}_Embed_{}'.format(
                 self.reg_weight, self.hidden_size, self.dropout, self.n_layers, self.lr, self.bidirectional,
-                self.attention, self.use_cache)
+                self.attention, self.use_cache, self.embed_size)
 
 
 
