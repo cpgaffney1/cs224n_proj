@@ -181,7 +181,7 @@ class VBModel(Model):
             start_batch = time.time()
             encoder_inputs_batch, labels_batch, encoder_lengths_batch = batch
             print('\n' + self.config.id2tok[labels_batch[0]])
-            predictions, train_loss, cache = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
+            predictions, train_loss, cache, cache_sentences = self.train_on_batch(sess, encoder_inputs_batch=encoder_inputs_batch,
                                                     decoder_inputs_batch=None,
                                                     encoder_lengths_batch=encoder_lengths_batch,
                                                     decoder_lengths_batch=None,
@@ -206,6 +206,7 @@ class VBModel(Model):
                 if dev_loss < self.best_dev_loss:
                     print('Saving new model')
                     np.save('models/{}/saved_cache.npy'.format(self.config), cache)
+                    np.save('models/{}/saved_cache_sentences.npy'.format(self.config), cache_sentences)
                     saver.save(sess, "models/{}/fill_model.ckpt".format(self.config))
                     self.best_dev_loss = dev_loss
             with open('models/{}/train_loss.txt'.format(self.config), 'a') as of:
