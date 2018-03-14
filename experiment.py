@@ -139,7 +139,7 @@ def evaluate(args):
                     of.write(model.print_pred(pred))
                     of.write('\n')
 
-def eval_model(model, data, config, id2tok):
+def eval_model(model, data, config, id2tok, cache=False):
     saver = tf.train.Saver()
     with tf.Session() as session:
         # session.run(init)
@@ -159,24 +159,25 @@ def eval_model(model, data, config, id2tok):
                     of.write('\n')
                     count += 1
         print('Accuracy = {}'.format(acc_count / len(predictions)))
+'''
+        if cache:
+            ## visualize cache attention
+            W, v = session.run([model.cache_W, model.cache_v])
+            with open('models/{}/cache_attention.txt'.format(config), 'w') as of:
+                for i in range(len(data)):
+                    input, label, _ = data[i]
+                    cache_score = np.dot(v, np.tanh(np.matmul(input, W)))
+                    of.write('{}\n'.format(cache_score))
 
-        ## visualize cache attention
-        W, v = session.run([model.cache_W, model.cache_v])
-        with open('models/{}/cache_attention.txt'.format(config), 'w') as of:
-            for i in range(len(data)):
-                input, label, _ = data[i]
-                cache_score = np.dot(v, np.tanh(np.matmul(input, W)))
-                of.write('{}\n'.format(cache_score))
+            with open('models/{}/cache_vectors.txt'.format(config), 'w') as of:
+                for i in range(len(model.cache)):
+                    for j in range(len(model.cache[i])):
+                        of.write('{}\t'.format(model.cache[i][j]))
+                    of.write('\n')
 
-        with open('models/{}/cache_vectors.txt'.format(config), 'w') as of:
-            for i in range(len(model.cache)):
-                for j in range(len(model.cache[i])):
-                    of.write('{}\t'.format(model.cache[i][j]))
-                of.write('\n')
-
-        with open('models/{}/cache_sentences.txt'.format(config), 'w') as of:
-            for i in range(len(model.cache_sentences)):
-                of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
+            with open('models/{}/cache_sentences.txt'.format(config), 'w') as of:
+                for i in range(len(model.cache_sentences)):
+                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n') '''
 
 
 def evaluate_v2(args):
@@ -193,7 +194,7 @@ def evaluate_v2(args):
     tf.reset_default_graph()
     with tf.Graph().as_default():
         model = FillModel(config, pretrained_embeddings)
-        eval_model(model, test_set, config, id2tok)
+        eval_model(model, test_set, config, id2tok, cache=args.cache)
 
     _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='train')
     config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
@@ -206,7 +207,7 @@ def evaluate_v2(args):
     tf.reset_default_graph()
     with tf.Graph().as_default():
         model = FillModel(config, pretrained_embeddings)
-        eval_model(model, dev_set, config, id2tok)
+        eval_model(model, dev_set, config, id2tok, cache=args.cache)
 
 
 def train_v2(args):
