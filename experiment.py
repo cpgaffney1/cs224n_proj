@@ -166,8 +166,8 @@ def eval_model(model, data, config, id2tok, cache=False, mode='test'):
             with open('models/{}/{}_cache_attention.txt'.format(config, mode), 'w') as of:
                 for i in range(len(data)):
                     input, label, _ = data[i]
-                    cache_score = np.dot(v, np.tanh(np.matmul(input, W)))
-                    of.write('{}\n'.format(cache_score))
+                    #cache_score = np.dot(v, np.tanh(np.matmul(input, W)))
+                    #of.write('{}\n'.format(cache_score))
 
             with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
                 for i in range(len(model.cache)):
@@ -226,7 +226,6 @@ def train_v2(args):
 
     normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
     train_data = normal_data
-    np.random.shuffle(train_data)
     dev_size = 5000
     train_data = train_data[dev_size:]
     dev_data = train_data[:dev_size]
