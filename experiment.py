@@ -147,7 +147,7 @@ def eval_model(model, data, config, id2tok, cache=False):
         data = data[:5000]
         predictions, dev_loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
         print('{}'.format(dev_loss))
-        acc_count = 0
+        acc_count = 0.0
         with open('models/{}/test_predictions.txt'.format(config), 'w') as of:
             count = 0
             for i in range(len(predictions)):
@@ -158,9 +158,9 @@ def eval_model(model, data, config, id2tok, cache=False):
                     of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i][j]]))
                     of.write('\n')
                     count += 1
-        print('Accuracy = {}'.format(acc_count / len(predictions)))
-'''
-        if cache:
+        print('Accuracy = {}'.format(acc_count / count))
+
+        '''if cache:
             ## visualize cache attention
             W, v = session.run([model.cache_W, model.cache_v])
             with open('models/{}/cache_attention.txt'.format(config), 'w') as of:
@@ -177,7 +177,7 @@ def eval_model(model, data, config, id2tok, cache=False):
 
             with open('models/{}/cache_sentences.txt'.format(config), 'w') as of:
                 for i in range(len(model.cache_sentences)):
-                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n') '''
+                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')'''
 
 
 def evaluate_v2(args):
