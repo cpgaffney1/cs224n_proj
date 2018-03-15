@@ -97,7 +97,7 @@ def make_fill_blank_data(simple, normal, pad, tok2id, id2tok=None):
     global max_normal_timesteps
     global max_simple_timesteps
     skipped_count = 0
-    assert(len(simple) == len(normal))
+    #assert(len(simple) == len(normal))
     normal_data = []
     for i in range(len(normal)):
         enc = [tok2id[pad]] * max_simple_timesteps
@@ -109,13 +109,11 @@ def make_fill_blank_data(simple, normal, pad, tok2id, id2tok=None):
         enc_len = len(sentence)
         assert(len(sentence) <= max_simple_timesteps)
         for j in range(offset, max_simple_timesteps - 1):
-            enc[j + 1] = tok2id[sentence[j - offset]]
-            if id2tok is not None:
-                assert(id2tok[enc[j+1]] == sentence[j-offset])
+            enc[j + 1] = tok2id.get(sentence[j - offset], tok2id['<unk>'])
 
         assert(enc_len <= max_simple_timesteps)
         assert(len(enc) <= max_simple_timesteps)
-        normal_data.append((enc, tok2id[sentence[-1]], enc_len))
+        normal_data.append((enc, tok2id.get(sentence[-1], tok2id['<unk>']), enc_len))
 
     simple_data = []
     for i in range(len(simple)):
@@ -128,13 +126,11 @@ def make_fill_blank_data(simple, normal, pad, tok2id, id2tok=None):
         enc_len = len(sentence)
         assert(len(sentence) <= max_simple_timesteps)
         for j in range(offset, max_simple_timesteps - 1):
-            enc[j + 1] = tok2id[sentence[j - offset]]
-            if id2tok is not None:
-                assert(id2tok[enc[j+1]] == sentence[j-offset])
+            enc[j + 1] = tok2id.get(sentence[j - offset], tok2id['<unk>'])
 
         assert(enc_len <= max_simple_timesteps)
         assert(len(enc) <= max_simple_timesteps)
-        simple_data.append((enc, tok2id[sentence[-1]], enc_len))
+        simple_data.append((enc, tok2id.get(sentence[-1], tok2id['<unk>']), enc_len))
 
     print('skipped {} long sentences'.format(skipped_count))
     return normal_data, simple_data

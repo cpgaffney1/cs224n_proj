@@ -221,9 +221,10 @@ if __name__ == '__main__':
     else:
         ARGS.func(ARGS)
 
+
 '''np.random.shuffle(normal)
     train = normal[:int(0.75 * len(normal))]
-    dev = normal[int(0.75 * len(normal)): int(0.8 * len(normal))]
+    dev = normal[int(0.75 * len(normal)) : int(0.8 * len(normal))]
     test = normal[int(0.8 * len(normal)):]
     with open('data/train.txt', 'w') as of:
         for sentence in train:
