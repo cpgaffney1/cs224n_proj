@@ -21,7 +21,7 @@ class Config:
     beam_width = 10
     reg_weight = 0.00001
     max_gradient_norm = 5.0
-    cache_size = 1000
+    cache_size = 100
     uses_regularization = True
 
     def __init__(self, embed_size, vocab_size, max_encoder_timesteps, max_decoder_timesteps,
