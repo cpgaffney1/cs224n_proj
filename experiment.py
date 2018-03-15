@@ -46,102 +46,6 @@ def load_one_datafile(filenum):
     data = pickle.load(open('data//' + str(filenum) + ".data", "rb"))
     return data
 
-def train(args):
-    pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
-                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                    id2tok,
-                    large=args.large)
-    if args.resume:
-        tf.reset_default_graph()
-    else:
-        with open('dev_predict.txt', 'w') as of:
-            of.write('\n')
-        with open('train_loss.txt', 'w') as of:
-            of.write('\n')
-        with open('dev_loss.txt', 'w') as of:
-            of.write('\n')
-        with open('training_output.txt', 'w') as of:
-            print('Beginning train with params:')
-            print('Attention: {}, Bidirectional: {}'.format(args.attention, args.bidirectional))
-            print()
-            of.write('Beginning train with params:\n')
-            of.write('Attention: {}, Bidirectional: {}\n\n'.format(args.attention, args.bidirectional))
-
-
-    with tf.Graph().as_default():
-        print("Building model...",)
-        start = time.time()
-        model = Seq2SeqModel(config, pretrained_embeddings)
-        print("took %.2f seconds", time.time() - start)
-
-        init = tf.global_variables_initializer()
-        saver = tf.train.Saver()
-        with tf.Session() as session:
-            if args.resume:
-                print('resuming from previous checkpoint')
-                saver.restore(session, 'models/seq2seq_model.ckpt')
-            else:
-                session.run(init)
-            if args.buildmodel:
-                exit(0)
-            for epoch in range(config.n_epochs):
-                print()
-                print('Epoch {} out of {}'.format(epoch + 1, config.n_epochs))
-                with open('training_output.txt', 'a') as of:
-                    of.write('Epoch {} out of {}\n'.format(epoch + 1, config.n_epochs))
-                randchoice = random.randint(0, len([file for file in os.listdir('data') if file.endswith('.data')]) - 1)
-                randchoice = 0
-                data = load_one_datafile(randchoice)
-                data = data[:20]
-                #data= [
-                #    (np.random.randint(2, size=20), np.random.randint(2, size=41), np.random.randint(2, size=41), 20, 41) for _ in range(400)
-                #]
-                train_data, dev_data = split_train_dev(data)
-                model.fit(session, saver, None, train_data, dev_data, pad_tokens=[embedder.PAD, embedder.END], epoch=epoch)
-
-
-def evaluate(args):
-    pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='test')
-    data = make_seq2seq_data(simple, normal, embedder.START, embedder.END, embedder.PAD, tok2id)
-    tf.reset_default_graph()
-
-    with tf.Graph().as_default():
-        config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                        parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
-                        embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                        id2tok, mode='TEST',
-                        beamsearch=args.beamsearch, large=args.large)
-        model = Seq2SeqModel(config, pretrained_embeddings)
-        saver = tf.train.Saver()
-        with tf.Session() as session:
-            saver.restore(session, 'models/seq2seq_model.ckpt')
-            predictions, loss = model.evaluate(session, data, pad_tokens=[embedder.PAD, embedder.END])
-            predictions = model.index_to_word(predictions)
-            length_dif_sum_pred = 0
-            length_dif_sum_actual = 0
-            for i in range(len(predictions)):
-                print('INPUT')
-                print(simple[i])
-                print('---------')
-                print('EXPECTED')
-                print(normal[i])
-                print('---------')
-                print('PREDICTED')
-                print(model.print_pred(predictions[i]))
-                print()
-                length_dif_sum_pred += (len(model.print_pred(predictions[i]).split(' ')) - len(simple[i].split(' ')))
-                length_dif_sum_actual += (len(normal[i].split(' ')) - len(simple[i].split(' ')))
-            print('Average length differences for predicted and actual.')
-            print('Actual: {}'.format(length_dif_sum_actual / len(predictions)))
-            print('Predicted: {}'.format(length_dif_sum_pred / len(predictions)))
-            with open('eval_predictions.txt', 'w') as of:
-                for pred in predictions:
-                    of.write(model.print_pred(pred))
-                    of.write('\n')
-
 def plot_svd(X, config):
     U, s, Vh = np.linalg.svd(X, full_matrices=True)
     for i in range(len(X)):
@@ -150,88 +54,69 @@ def plot_svd(X, config):
 
 
 
-def eval_model(model, data, config, id2tok, cache=False, mode='test'):
-    saver = tf.train.Saver()
-    with tf.Session() as session:
-        # session.run(init)
-        saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
-        data = data[:5000]
-        predictions, cache_weights, loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
-        print('Loss = {}'.format(loss))
-        acc_count = 0.0
-        with open('models/{}/{}_predictions.txt'.format(config, mode), 'w') as of:
-            count = 0
-            for i in range(len(predictions)):
-                for j in range(len(predictions[i])):
-                    input, label, _ = data[count]
-                    acc_count += int(label == predictions[i][j])
-                    try:
-                        of.write(' '.join([id2tok[tok] for tok in input]) + '\n')
-                        of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i][j]]))
-                        of.write('\n')
-                    except:
-                        print('failed to write character')
-                    count += 1
-        print('Accuracy = {}'.format(acc_count / count))
-
-        if cache:
-            ## visualize cache attention
-            with open('models/{}/{}_cache_attention.txt'.format(config, mode), 'w') as of:
-                for i in range(len(cache_weights)):
-                    of.write('{}\n'.format(cache_weights[i]))
-
-            with open('models/{}/{}_cache_sentences.txt'.format(config, mode), 'w') as of:
-                for i in range(len(model.cache_sentences)):
-                    try:
-                        of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
-                    except:
-                        print('failed to write character')
-
-            with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
-                for i in range(len(model.cache)):
-                    for j in range(len(model.cache[i])):
-                        of.write('{}\t'.format(model.cache[i][j]))
+def eval_model(model, data, config, id2tok, session, cache=False, mode='test'):
+    predictions, cache_weights, loss = model.evaluate_fill(session, data, pad_tokens=[embedder.PAD, embedder.END])
+    print('Loss = {}'.format(loss))
+    acc_count = 0.0
+    with open('models/{}/{}_predictions.txt'.format(config, mode), 'w') as of:
+        count = 0
+        for i in range(len(predictions)):
+            for j in range(len(predictions[i])):
+                input, label, _ = data[count]
+                acc_count += int(label == predictions[i][j])
+                try:
+                    of.write(' '.join([id2tok[tok] for tok in input]) + '\n')
+                    of.write('ACTUAL: {}, PREDICTED: {}\n'.format(id2tok[label], id2tok[predictions[i][j]]))
                     of.write('\n')
-            plot_svd(model.cache, config)
+                except:
+                    print('failed to write character')
+                count += 1
+    print('Accuracy = {}'.format(acc_count / count))
+    if cache:
+        ## visualize cache attention
+        with open('models/{}/{}_cache_attention.txt'.format(config, mode), 'w') as of:
+            for i in range(len(cache_weights)):
+                of.write('{}\n'.format(cache_weights[i]))
+        with open('models/{}/{}_cache_sentences.txt'.format(config, mode), 'w') as of:
+            for i in range(len(model.cache_sentences)):
+                try:
+                    of.write(' '.join([id2tok[tok] for tok in model.cache_sentences[i]]) + '\n')
+                except:
+                    print('failed to write character')
+        with open('models/{}/{}_cache_vectors.txt'.format(config, mode), 'w') as of:
+            for i in range(len(model.cache)):
+                for j in range(len(model.cache[i])):
+                    of.write('{}\t'.format(model.cache[i][j]))
+                of.write('\n')
+        plot_svd(model.cache, config)
 
 
 def evaluate_v2(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    _, normal, simple, _, _ = embedder.load_embeddings(large=args.large, mode='test')
     config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
                     parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
                     embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
                     id2tok, cache=args.cache,
                     large=args.large, mode='test')
-    normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    test_set = normal_data
+    with open('data/test.txt') as f:
+        test = f.readlines()
+    with open('data/dev.txt') as f:
+        dev = f.readlines()
 
+    test_data, dev_data = make_fill_blank_data(test, dev, embedder.PAD, tok2id, id2tok=id2tok)
     tf.reset_default_graph()
     with tf.Graph().as_default():
+        saver = tf.train.Saver()
         model = FillModel(config, pretrained_embeddings)
-        eval_model(model, test_set, config, id2tok, cache=args.cache, mode='test')
-
-    pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    normal, simple = parser_util.parse_pwkp(mode='train')
-    config = Config(len(pretrained_embeddings[0]), len(pretrained_embeddings),
-                    parser_util.max_normal_timesteps, parser_util.max_simple_timesteps,
-                    embedder.PAD, tok2id[embedder.START], tok2id[embedder.END], args.attention, args.bidirectional,
-                    id2tok, cache=args.cache,
-                    large=args.large, mode='test')
-
-    normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    train_data = normal_data
-    dev_size = 5000
-    dev_data = train_data[:dev_size]
-    tf.reset_default_graph()
-    with tf.Graph().as_default():
-        model = FillModel(config, pretrained_embeddings)
-        eval_model(model, dev_data, config, id2tok, cache=args.cache, mode='dev')
+        with tf.Session() as session:
+            saver.restore(session, 'models/{}/fill_model.ckpt'.format(config))
+            eval_model(model, test_data, config, id2tok, session, cache=args.cache, mode='test')
+            eval_model(model, dev_data, config, id2tok, session, cache=args.cache, mode='dev')
         
 
 def train_v2(args):
     pretrained_embeddings, _, _, tok2id, id2tok = embedder.load_embeddings(large=args.large, mode='full')
-    normal, simple = parser_util.parse_pwkp(mode='train')
+    #normal, simple = parser_util.parse_pwkp(mode='train')
     mode = 'train'
     if args.resume:
         mode = 'restore'
@@ -256,11 +141,12 @@ def train_v2(args):
             print('Beginning train with params: {}\n\n'.format(config))
             of.write('Beginning train with params: {}\n\n'.format(config))
 
-    normal_data, simple_data = make_fill_blank_data(simple, normal, embedder.PAD, tok2id, id2tok=id2tok)
-    train_data = normal_data
-    dev_size = 5000
-    train_data = train_data[dev_size:]
-    dev_data = train_data[:dev_size]
+    with open('data/train.txt') as f:
+        train = f.readlines()
+    with open('data/dev.txt') as f:
+        dev = f.readlines()
+
+    train_data, dev_data = make_fill_blank_data(train, dev, embedder.PAD, tok2id, id2tok=id2tok)
     run_session(args, config, pretrained_embeddings, train_data, dev_data)
 
 
@@ -335,4 +221,29 @@ if __name__ == '__main__':
     else:
         ARGS.func(ARGS)
 
-
+'''np.random.shuffle(normal)
+    train = normal[:int(0.75 * len(normal))]
+    dev = normal[int(0.75 * len(normal)): int(0.8 * len(normal))]
+    test = normal[int(0.8 * len(normal)):]
+    with open('data/train.txt', 'w') as of:
+        for sentence in train:
+            try:
+                of.write(sentence)
+                of.write('\n')
+            except:
+                print('unwritable character')
+    with open('data/dev.txt', 'w') as of:
+        for sentence in dev:
+            try:
+                of.write(sentence)
+                of.write('\n')
+            except:
+                print('unwritable character')
+    with open('data/test.txt', 'w') as of:
+        for sentence in test:
+            try:
+                of.write(sentence)
+                of.write('\n')
+            except:
+                print('unwritable character')
+    exit()'''

@@ -20,7 +20,7 @@ class Config:
     n_layers = 1
     beam_width = 10
     reg_weight = 0.00001
-    max_gradient_norm = 5.0
+    max_gradient_norm = 5.0 
     cache_size = 100
     uses_regularization = True
 
