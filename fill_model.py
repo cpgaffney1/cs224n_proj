@@ -232,14 +232,12 @@ class FillModel(VBModel):
         if self.config.use_cache:
             candidate_batch, W, v = sess.run([self.last_output,
                                               self.cache_W, self.cache_v], feed_dict=feed)
-            np.set_printoptions(threshold=np.nan)
             for i in range(len(candidate_batch)):
                 candidate = candidate_batch[i]
                 cand_sentence = encoder_inputs_batch[i]
                 if self.insert_cache_candidate(candidate, cand_sentence, W, v):
                     print('inserted cache')
                     self.maintain_cache(0, W, v)
-            print(self.cache_sentences)
         return predictions, loss, self.cache, self.cache_sentences
 
     def score_state_vector(self, a, W, v):
