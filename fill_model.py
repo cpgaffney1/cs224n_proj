@@ -156,7 +156,11 @@ class FillModel(VBModel):
                 encoder_outputs = tf.transpose(encoder_outputs, [1, 0, 2])
                 self.last_output = tf.gather(encoder_outputs, int(encoder_outputs.get_shape()[0]) - 1)
                 print(self.last_output)
+
+            if self.config.uses_regularization:
+                self.last_output = tf.layers.batch_normalization(self.last_output)
             state = self.last_output
+
             if self.config.use_cache:
                 z = tf.get_variable("final_cache_weights_z", [self.config.hidden_size])
                 weighted_cache = self.cache_attention()
@@ -169,7 +173,6 @@ class FillModel(VBModel):
             pred = tf.matmul(state, W) + b
 
             if self.config.uses_regularization:
-                self.last_output = tf.layers.batch_normalization(self.last_output)
                 pred = tf.layers.batch_normalization(pred)
         return pred
 
@@ -254,37 +257,70 @@ class FillModel(VBModel):
 
 
     def maintain_cache(self, i, W, v):
+        print(i)
         def right(j):
-            return j * 2
+            return (j + 1) * 2 - 1
 
         def left(j):
-            return j * 2 + 1
+            return (j + 1) * 2
 
-        if i + 1 >= len(self.cache):
+        def swap_right():
+            # print('start')
+            # print(self.cache_sentences[i])
+            # print(self.cache_sentences[right(i)])
+            temp = np.copy(self.cache[right(i)])
+            temp_sentence = np.copy(self.cache_sentences[right(i)])
+            # print('temp')
+            # print(temp_sentence)
+            self.cache[right(i)] = np.copy(self.cache[i])
+            self.cache_sentences[right(i)] = np.copy(self.cache_sentences[i])
+            # print('set child')
+            # print(self.cache_sentences[right(i)])
+            self.cache[i] = temp
+            self.cache_sentences[i] = temp_sentence
+            # print('end')
+            # print(self.cache_sentences[i])
+            # print(self.cache_sentences[right(i)])
+
+        def swap_left():
+            # print('start')
+            # print(self.cache_sentences[i])
+            # print(self.cache_sentences[left(i)])
+            temp = np.copy(self.cache[left(i)])
+            temp_sentence = np.copy(self.cache_sentences[left(i)])
+            # print('temp')
+            # print(temp_sentence)
+            self.cache[left(i)] = np.copy(self.cache[i])
+            self.cache_sentences[left(i)] = np.copy(self.cache_sentences[i])
+            # print('set child')
+            # print(self.cache_sentences[left(i)])
+            self.cache[i] = temp
+            self.cache_sentences[i] = temp_sentence
+            # print('end')
+
+        if i >= len(self.cache):
             return
 
+
+        right_score = float('+inf')
+        left_score = float('+inf')
         candidate_score = self.score_state_vector(self.cache[i], W, v)
         if right(i) < len(self.cache):
             right_score = self.score_state_vector(self.cache[right(i)], W, v)
         if left(i) < len(self.cache):
             left_score = self.score_state_vector(self.cache[left(i)], W, v)
 
-        if right(i) < len(self.cache) and candidate_score > right_score:
-            temp = self.cache[right(i)].copy()
-            temp_sentence = self.cache_sentences[right(i)].copy()
-            self.cache[right(i)] = self.cache[i].copy()
-            self.cache_sentences[right(i)] = self.cache_sentences[i].copy()
-            self.cache[i] = temp
-            self.cache_sentences[i] = temp_sentence
-            self.maintain_cache(right(i), W, v)
-        elif left(i) < len(self.cache) and candidate_score > left_score:
-            temp = self.cache[left(i)].copy()
-            temp_sentence = self.cache_sentences[left(i)].copy()
-            self.cache[left(i)] = self.cache[i].copy()
-            self.cache_sentences[right(i)] = self.cache_sentences[i].copy()
-            self.cache[i] = temp
-            self.cache_sentences[i] = temp_sentence
+        if candidate_score < min(right_score, left_score):
+            return
+
+        if left_score <= right_score:
+            swap_left()
             self.maintain_cache(left(i), W, v)
+        elif right_score < left_score:
+            swap_right()
+            self.maintain_cache(right(i), W, v)
+
+
 
     def clear_cache(self):
         self.cache = np.zeros((self.config.cache_size, self.config.hidden_size))
